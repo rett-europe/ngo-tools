@@ -1,0 +1,48 @@
+{
+  "tool": "ngo-tools-group-board",
+  "version": 1,
+  "title": "Synthetic Forum working groups",
+  "groups": [
+    {
+      "id": "research",
+      "label": "Research",
+      "colour": "#2f5d8a",
+      "note": "Fictional research priorities",
+      "lead": "p1"
+    },
+    {
+      "id": "care",
+      "label": "Clinical care",
+      "colour": "#5b8c5a",
+      "lead": "p5"
+    },
+    {
+      "id": "families",
+      "label": "Families",
+      "colour": "#c9a227",
+      "lead": "p8"
+    },
+    {
+      "id": "funding",
+      "label": "Funding",
+      "colour": "#8a4f7d",
+      "note": "No lead chosen yet"
+    }
+  ],
+  "people": [
+    { "id": "p1", "name": "Alex Example", "organisation": "Example University", "role": "Researcher", "tags": ["science", "speaker"], "group": "research" },
+    { "id": "p2", "name": "Bea Sample", "organisation": "Sample Institute", "role": "Postdoc", "tags": ["science"], "group": "research" },
+    { "id": "p3", "name": "Carlos Fictício", "organisation": "Example University", "role": "Lab manager", "group": "research" },
+    { "id": "p4", "name": "Dana Placeholder", "organisation": "Synthetic Hospital", "role": "Neurologist", "tags": ["clinician", "speaker"], "group": "care" },
+    { "id": "p5", "name": "Eli Mock", "organisation": "Synthetic Hospital", "role": "Nurse coordinator", "tags": ["clinician"], "group": "care" },
+    { "id": "p6", "name": "Fran Demo", "organisation": "Demo Clinic", "role": "Physiotherapist", "tags": ["clinician"], "group": "care" },
+    { "id": "p7", "name": "Gabi Test", "role": "Parent", "tags": ["family"], "group": "families" },
+    { "id": "p8", "name": "Hugo Ejemplo", "organisation": "Fictional Family Association", "role": "Chair", "tags": ["family", "speaker"], "group": "families" },
+    { "id": "p9", "name": "Iris Muestra", "role": "Parent", "tags": ["family"], "note": "Joins remotely", "group": "families" },
+    { "id": "p10", "name": "Jon Sample", "organisation": "Example Foundation", "role": "Programme officer", "tags": ["funder"], "group": "funding" },
+    { "id": "p11", "name": "Kim Example", "organisation": "Demo Pharma", "role": "Medical affairs", "group": "funding" },
+    { "id": "p12", "name": "Lou Placeholder", "organisation": "Sample Institute", "role": "Student", "tags": ["science"] },
+    { "id": "p13", "name": "Mar Ficticia", "role": "Volunteer", "note": "Available on day 2 only" },
+    { "id": "p14", "name": "Noa Demo", "organisation": "Example Foundation", "role": "Communications" }
+  ]
+}

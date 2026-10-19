@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>Group board</title>
+<style>
+  :root { --line: #d7dbe0; --muted: #5d6670; --bg: #f6f7f9; --accent: #2f5d8a; --danger: #b3261e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1d2329; background: var(--bg); }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+  header h1 { font-size: 24px; margin: 0 auto 0 0; }
+  button { font: inherit; padding: 5px 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.small { padding: 1px 8px; font-size: 12px; }
+  #search { font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; width: 200px; }
+  #status { min-height: 1.4em; padding: 4px 16px; color: var(--muted); }
+  #status[data-kind="error"] { color: var(--danger); font-weight: 600; }
+  main { padding: 0 16px 24px; }
+  .board { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+  .column { width: 250px; min-height: 120px; background: #fff;   border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+    .column.tray { background: #eef0f3; border-style: dashed; }
+    .swatch { width: 12px; height: 12px; border-radius: 50%; background: var(--colour, #7a7a7a); flex: 0 0 auto; align-self: center; }
+  .column.drop-hint { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .column-head { display: flex; align-items: baseline; gap: 6px; }
+  .column-title { font-weight: 700; font-size: 15px; flex: 1 1 auto; overflow-wrap: anywhere; }
+  .count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .group-note { font-size: 12px; font-style: italic; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .group-lead { font-size: 12px; margin-top: 2px; }
+  .tag-summary { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .cards { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; min-height: 40px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; cursor: grab; user-select: none; touch-action: none; overflow-wrap: anywhere; }
+  .card:focus-visible { outline: 2px solid #111; outline-offset: 1px; }
+  .card.dragging { pointer-events: none; opacity: .85; position: relative; z-index: 30; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+  .card.lead { box-shadow: inset 0 0 0 1px var(--colour, #b7bec7); }
+  .card.match { outline: 3px solid #e0a800; }
+  .card.dim { opacity: .35; }
+  .card-name { font-weight: 600; }
+  .star { color: #c58a00; margin-left: 4px; }
+  .card-meta { font-size: 12px; color: var(--muted); }
+  .card-note { font-size: 12px; font-style: italic; color: var(--muted); }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+  .tag { font-size: 11px; padding: 0 6px; border-radius: 9px; background: #e6ebf1; color: #33404d; }
+  .empty { font-size: 12px; color: var(--muted); margin: 4px 0; }
+  dialog { border: 1px solid var(--line); border-radius: 10px; padding: 16px; width: min(440px, 94vw); }
+  dialog h2 { margin: 0; font-size: 18px; }
+  dialog label { display: block; margin: 8px 0 2px; font-size: 12px; color: var(--muted); }
+  dialog label.check { display: flex; gap: 6px; align-items: center; color: inherit; font-size: 14px; }
+  dialog label.check input { width: auto; }
+  dialog input, dialog select, dialog textarea { width: 100%; font: inherit; padding: 4px 6px; }
+  dialog input[type="color"] { width: 60px; height: 32px; padding: 0 2px; }
+  .hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+  .error { color: var(--danger); min-height: 1.2em; margin: 8px 0 0; }
+  .dialog-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .dialog-buttons .spacer { margin-left: auto; }
+  [hidden] { display: none !important; }
+  @media print {
+    header, #status { display: none; }
+    body { background: #fff; }
+    .column { break-inside: avoid; }
+    .column-head button { display: none; }
+    .card.dim { opacity: 1; }
+    .card.match { outline: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="doc-title">Group board</h1>
+  <input id="search" type="search" placeholder="Search people or tags" aria-label="Search people or tags">
+  <button id="title-button" type="button">Title…</button>
+  <button id="new" type="button">New</button>
+  <button id="load" type="button">Load…</button>
+  <button id="save" type="button" disabled>Save</button>
+  <button id="add-person" type="button" class="primary">Add person</button>
+  <button id="add-people" type="button">Add people…</button>
+  <button id="add-group" type="button">Add group</button>
+  <button id="undo" type="button" disabled>Undo</button>
+  <button id="reset" type="button" disabled>Reset</button>
+  <input id="file-input" type="file" accept=".json,application/json" hidden>
+</header>
+<div id="status" role="status" aria-live="polite"></div>
+<main id="workspace">
+  <div id="board" class="board"></div>
+</main>
+<dialog id="person-dialog">
+  <form id="person-form">
+    <h2 id="p-heading">Person</h2>
+    <label for="p-name">Name</label><input id="p-name" type="text" required>
+    <label for="p-organisation">Organisation (optional)</label><input id="p-organisation" type="text">
+    <label for="p-role">Role (optional)</label><input id="p-role" type="text">
+    <label for="p-tags">Tags (optional, separated by commas)</label><input id="p-tags" type="text">
+    <label for="p-note">Note (optional)</label><textarea id="p-note" rows="2"></textarea>
+    <label for="p-group">Group</label><select id="p-group"></select>
+    <label class="check"><input id="p-lead" type="checkbox"> Lead of this group</label>
+    <p id="p-error" class="error" role="alert"></p>
+    <div class="dialog-buttons">
+      <button id="p-save" type="submit" class="primary">Apply</button>
+      <button id="p-delete" type="button">Delete</button>
+      <button id="p-cancel" type="button" class="spacer">Cancel</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="paste-dialog">
+  <form id="paste-form">
+    <h2>Add people</h2>
+    <label for="paste-text">One person per line</label><textarea id="paste-text" rows="8"></textarea>
+    <p class="hint">Write a name per line. To add an organisation and role, separate them with a tab (as when pasting from a spreadsheet) or a semicolon: Name; Organisation; Role. New people go to Unassigned.</p>
+    <p id="paste-error" class="error" role="alert"></p>
+    <div class="dialog-buttons">
+      <button id="paste-save" type="submit" class="primary">Add</button>
+      <button id="paste-cancel" type="button" class="spacer">Cancel</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="group-dialog">
+  <form id="group-form">
+    <h2 id="g-heading">Group</h2>
+    <label for="g-label">Name</label><input id="g-label" type="text" required>
+    <label for="g-colour">Colour</label><input id="g-colour" type="color">
+    <label for="g-note">Note (optional)</label><textarea id="g-note" rows="2"></textarea>
+    <label for="g-lead">Lead</label><select id="g-lead"></select>
+    <p id="g-error" class="error" role="alert"></p>
+    <div class="dialog-buttons">
+      <button id="g-save" type="submit" class="primary">Apply</button>
+      <button id="g-earlier" type="button">◀ Earlier</button>
+      <button id="g-later" type="button">Later ▶</button>
+      <button id="g-delete" type="button">Delete</button>
+      <button id="g-cancel" type="button" class="spacer">Cancel</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="title-dialog">
+  <form id="title-form">
+    <h2>Board title</h2>
+    <label for="t-title">Title</label><input id="t-title" type="text" required>
+    <p id="t-error" class="error" role="alert"></p>
+    <div class="dialog-buttons">
+      <button type="submit" class="primary">Apply</button>
+      <button id="t-cancel" type="button" class="spacer">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<script id="core">
+"use strict";
+// Pure group board logic with no page or storage access. Operations return a new board object.
+const TOOL = "ngo-tools-group-board";
+const VERSION = 1;
+const UNDO_LIMIT = 150;
+const PERSON_TEXT = ["organisation", "role", "note"];
+const PALETTE = ["#2f5d8a", "#c9a227", "#5b8c5a", "#8a4f7d", "#c0612b", "#4f8a8b", "#7a7a7a", "#a33b3b"];
+
+const clone = value => JSON.parse(JSON.stringify(value));
+const isObject = value => typeof value === "object" && value !== null && !Array.isArray(value);
+const isText = value => typeof value === "string" && value.trim() !== "";
+const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+const quote = value => value === undefined ? "nothing" : JSON.stringify(value);
+const isColour = value => typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+
+function fail(message) { throw new Error(message); }
+
+function checkList(doc, key, what, check) {
+  const list = doc[key];
+  if (!Array.isArray(list)) fail(`"${key}" must be a list.`);
+  const seen = new Set();
+  list.forEach((item, index) => {
+    if (!isObject(item)) fail(`Entry ${index + 1} in "${key}" must be an object.`);
+    if (!isText(item.id)) fail(`Entry ${index + 1} in "${key}" needs a non-empty text "id".`);
+    if (seen.has(item.id)) fail(`Duplicate ${what.toLowerCase()} id ${quote(item.id)} in "${key}".`);
+    seen.add(item.id);
+    check(item, `${what} ${quote(item.id)}`);
+  });
+  return seen;
+}
+
+// Full validation; throws an Error naming the first problem. Never changes its input.
+function validate(doc) {
+  if (!isObject(doc)) fail("The file does not contain a JSON object.");
+  if (doc.tool !== TOOL) {
+    if (typeof doc.tool === "string") fail(`This file is for ${quote(doc.tool)}, not for ${quote(TOOL)}.`);
+    fail(`This file does not say it belongs to ${quote(TOOL)} (missing "tool").`);
+  }
+  if (!Number.isInteger(doc.version) || doc.version < 1) fail(`"version" must be a whole number of at least 1; found ${quote(doc.version)}.`);
+  if (doc.version > VERSION) fail(`This file was made by a newer version of this tool (format version ${doc.version}); this group board reads version ${VERSION}.`);
+  if (!isText(doc.title)) fail(`"title" must be non-empty text.`);
+  const groups = checkList(doc, "groups", "Group", (group, where) => {
+    if (!isText(group.label)) fail(`${where} needs a non-empty text "label".`);
+    if (!isColour(group.colour)) fail(`${where} needs a "colour" written as #rrggbb; found ${quote(group.colour)}.`);
+    if (has(group, "note") && typeof group.note !== "string") fail(`${where} "note" must be text.`);
+    if (has(group, "lead") && !isText(group.lead)) fail(`${where} "lead" must be a person id.`);
+  });
+  const people = new Map();
+  checkList(doc, "people", "Person", (person, where) => {
+    if (!isText(person.name)) fail(`${where} needs a non-empty text "name".`);
+    PERSON_TEXT.forEach(key => { if (has(person, key) && typeof person[key] !== "string") fail(`${where} "${key}" must be text.`); });
+    if (has(person, "tags")) {
+      if (!Array.isArray(person.tags)) fail(`${where} "tags" must be a list of texts.`);
+      const seen = new Set();
+      person.tags.forEach(tag => {
+        if (!isText(tag)) fail(`${where} has a tag that is not non-empty text: ${quote(tag)}.`);
+        if (seen.has(tag)) fail(`${where} lists the tag ${quote(tag)} twice.`);
+        seen.add(tag);
+      });
+    }
+    if (has(person, "group") && !groups.has(person.group)) fail(`${where} refers to unknown group ${quote(person.group)}.`);
+    people.set(person.id, person);
+  });
+  doc.groups.forEach(group => {
+    if (!has(group, "lead")) return;
+    const lead = people.get(group.lead);
+    if (!lead) fail(`Group ${quote(group.id)} has unknown lead ${quote(group.lead)}.`);
+    if (lead.group !== group.id) fail(`Group ${quote(group.id)} lead ${quote(group.lead)} is not a member of that group.`);
+  });
+  return doc;
+}
+
+function parse(text) {
+  let doc;
+  try { doc = JSON.parse(text); } catch (error) { fail(`Not valid JSON: ${error.message}`); }
+  return validate(doc);
+}
+
+const serialise = doc => JSON.stringify(doc, null, 2) + "\n";
+
+function findPerson(doc, id) {
+  const person = doc.people.find(item => item.id === id);
+  if (!person) fail(`There is no person ${quote(id)}.`);
+  return person;
+}
+
+function findGroup(doc, id) {
+  const group = doc.groups.find(item => item.id === id);
+  if (!group) fail(`There is no group ${quote(id)}.`);
+  return group;
+}
+
+// Next free id of the form prefix-N, starting after the list length.
+function nextId(list, prefix) {
+  const ids = new Set(list.map(item => item.id));
+  let n = list.length + 1;
+  while (ids.has(prefix + n)) n += 1;
+  return prefix + n;
+}
+
+function clearLeadOf(doc, personId) {
+  doc.groups.forEach(group => { if (group.lead === personId) delete group.lead; });
+}
+
+// Puts a person in a group, or in the tray when groupId is null. Clears a lead role they leave behind.
+function assign(doc, person, groupId) {
+  if (groupId !== null) findGroup(doc, groupId);
+  if ((has(person, "group") ? person.group : null) === groupId) return;
+  clearLeadOf(doc, person.id);
+  if (groupId === null) delete person.group; else person.group = groupId;
+}
+
+function movePerson(doc, personId, groupId) {
+  const next = clone(doc);
+  assign(next, findPerson(next, personId), groupId);
+  return validate(next);
+}
+
+// Makes a member the group's only lead, or clears the lead when personId is null.
+function setLead(doc, groupId, personId) {
+  const next = clone(doc), group = findGroup(next, groupId);
+  if (personId === null) { delete group.lead; return next; }
+  const person = findPerson(next, personId);
+  if (person.group !== groupId) fail(`${person.name} is not a member of ${group.label}.`);
+  group.lead = personId;
+  return validate(next);
+}
+
+function setOptionalText(object, key, value) {
+  if (typeof value === "string" && value.trim() !== "") object[key] = value; else delete object[key];
+}
+
+// Splits comma-separated tag text into unique, trimmed, non-empty tags in order.
+function parseTags(text) {
+  const tags = [];
+  String(text).split(",").map(tag => tag.trim()).forEach(tag => { if (tag && !tags.includes(tag)) tags.push(tag); });
+  return tags;
+}
+
+// Form fields: name, organisation, role, note, tags (list), group (id or null), lead (boolean). Only given fields change.
+function applyPerson(doc, person, fields) {
+  if (has(fields, "name")) {
+    if (!isText(fields.name)) fail("Give the person a name.");
+    person.name = fields.name;
+  }
+  PERSON_TEXT.forEach(key => { if (has(fields, key)) setOptionalText(person, key, fields[key]); });
+  if (has(fields, "tags")) {
+    if (!Array.isArray(fields.tags)) fail("Tags must be a list.");
+    const tags = [];
+    fields.tags.forEach(tag => { const clean = String(tag).trim(); if (clean && !tags.includes(clean)) tags.push(clean); });
+    if (tags.length) person.tags = tags; else delete person.tags;
+  }
+  if (has(fields, "group")) assign(doc, person, fields.group);
+  if (has(fields, "lead")) {
+    if (fields.lead === true) {
+      if (!has(person, "group")) fail("Only a group member can be its lead; choose a group first.");
+      findGroup(doc, person.group).lead = person.id;
+    } else if (has(person, "group")) {
+      const group = findGroup(doc, person.group);
+      if (group.lead === person.id) delete group.lead;
+    }
+  }
+}
+
+function updatePerson(doc, id, fields) {
+  const next = clone(doc);
+  applyPerson(next, findPerson(next, id), fields);
+  return validate(next);
+}
+
+// Appends a new person with a fresh id ("person-N"), using the same fields as updatePerson.
+function addPerson(doc, fields) {
+  const next = clone(doc);
+  if (!isText(fields.name)) fail("Give the person a name.");
+  const person = { id: nextId(next.people, "person-"), name: fields.name };
+  next.people.push(person);
+  applyPerson(next, person, fields);
+  return validate(next);
+}
+
+function deletePerson(doc, id) {
+  const next = clone(doc);
+  findPerson(next, id);
+  clearLeadOf(next, id);
+  next.people = next.people.filter(person => person.id !== id);
+  return next;
+}
+
+// One person per line: name, organisation, role separated by a tab (if the line has one) or a semicolon.
+function parsePaste(text) {
+  const rows = [];
+  let skipped = 0;
+  String(text).split(/\r?\n/).forEach(line => {
+    if (line.trim() === "") return;
+    const parts = line.split(line.includes("\t") ? "\t" : ";").map(part => part.trim());
+    if (parts[0] === "") { skipped += 1; return; }
+    const row = { name: parts[0] };
+    if (parts[1]) row.organisation = parts[1];
+    if (parts[2]) row.role = parts[2];
+    rows.push(row);
+  });
+  return { rows, skipped };
+}
+
+function addPeople(doc, rows) {
+  const next = clone(doc);
+  rows.forEach(row => {
+    const person = { id: nextId(next.people, "person-"), name: row.name };
+    if (row.organisation) person.organisation = row.organisation;
+    if (row.role) person.role = row.role;
+    next.people.push(person);
+  });
+  return validate(next);
+}
+
+// Group fields: label, colour, note, lead (person id, or "" or null for none). Only given fields change.
+function applyGroup(group, fields) {
+  if (has(fields, "label")) {
+    if (!isText(fields.label)) fail("Give the group a name.");
+    group.label = fields.label;
+  }
+  if (has(fields, "colour")) {
+    if (!isColour(fields.colour)) fail(`Colour ${quote(fields.colour)} is not written as #rrggbb.`);
+    if (fields.colour.toLowerCase() !== String(group.colour).toLowerCase()) group.colour = fields.colour;
+  }
+  if (has(fields, "note")) setOptionalText(group, "note", fields.note);
+  if (has(fields, "lead")) {
+    if (fields.lead) group.lead = fields.lead; else delete group.lead;
+  }
+}
+
+// Appends a new group with a fresh id ("group-N"), a default name and the next palette colour.
+function addGroup(doc, fields) {
+  const next = clone(doc);
+  const group = { id: nextId(next.groups, "group-"), label: `Group ${next.groups.length + 1}`, colour: PALETTE[next.groups.length % PALETTE.length] };
+  applyGroup(group, fields || {});
+  next.groups.push(group);
+  return validate(next);
+}
+
+function updateGroup(doc, id, fields) {
+  const next = clone(doc);
+  applyGroup(findGroup(next, id), fields);
+  return validate(next);
+}
+
+// Moves a group earlier (delta -1) or later (delta +1) in the order; no change at either end.
+function moveGroup(doc, id, delta) {
+  const next = clone(doc), index = next.groups.findIndex(group => group.id === id);
+  if (index < 0) fail(`There is no group ${quote(id)}.`);
+  const target = index + delta;
+  if (target < 0 || target >= next.groups.length) return next;
+  const [group] = next.groups.splice(index, 1);
+  next.groups.splice(target, 0, group);
+  return next;
+}
+
+// Removes a group; its members move to the tray. No person is deleted.
+function deleteGroup(doc, id) {
+  const next = clone(doc);
+  findGroup(next, id);
+  next.people.forEach(person => { if (person.group === id) delete person.group; });
+  next.groups = next.groups.filter(group => group.id !== id);
+  return next;
+}
+
+// [tag, count] pairs, most frequent first; ties keep first appearance.
+function tagCounts(members) {
+  const counts = new Map();
+  members.forEach(person => (person.tags || []).forEach(tag => counts.set(tag, (counts.get(tag) || 0) + 1)));
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+// What the board shows: each group with members (file order), count, lead and tag counts; then the tray.
+function summary(doc) {
+  const groups = doc.groups.map(group => {
+    const members = doc.people.filter(person => person.group === group.id);
+    const lead = has(group, "lead") ? members.find(person => person.id === group.lead) || null : null;
+    return { group, members, count: members.length, lead, tags: tagCounts(members) };
+  });
+  const tray = doc.people.filter(person => !has(person, "group"));
+  return { groups, tray: { members: tray, count: tray.length, tags: tagCounts(tray) } };
+}
+
+// True when the query (ignoring case) is in the name, organisation, role, note or a tag. An empty query matches all.
+function matches(person, query) {
+  const needle = String(query).trim().toLowerCase();
+  if (needle === "") return true;
+  const fields = [person.name, person.organisation, person.role, person.note, ...(person.tags || [])];
+  return fields.some(value => typeof value === "string" && value.toLowerCase().includes(needle));
+}
+
+// Bounded undo history: pushes an entry and drops the oldest beyond UNDO_LIMIT.
+function pushHistory(stack, entry) {
+  stack.push(entry);
+  while (stack.length > UNDO_LIMIT) stack.shift();
+  return stack;
+}
+
+// A ready-to-use board: two empty groups and no people.
+function blankBoard() {
+  return validate({
+    tool: TOOL, version: VERSION, title: "New board",
+    groups: [
+      { id: "group-1", label: "Group 1", colour: PALETTE[0] },
+      { id: "group-2", label: "Group 2", colour: PALETTE[1] }
+    ],
+    people: []
+  });
+}
+
+globalThis.ToolCore = Object.freeze({
+  TOOL, VERSION, UNDO_LIMIT, PALETTE,
+  parse, validate, serialise, clone, nextId, parseTags, movePerson, setLead, updatePerson, addPerson, deletePerson,
+  parsePaste, addPeople, addGroup, updateGroup, moveGroup, deleteGroup, summary, matches, pushHistory, blankBoard
+});
+</script>
+
+<script id="ui">
+"use strict";
+(function () {
+  const C = window.ToolCore;
+  const $ = id => document.getElementById(id);
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const state = { doc: null, loadedText: null, savedText: null, fileName: "group-board.json", fileHandle: null };
+  const undoStack = [];
+  let editingPerson = null, editingGroup = null, editingTagsText = "";
+
+  function setStatus(message, kind) {
+    const status = $("status");
+    status.textContent = message;
+    status.setAttribute("data-kind", kind || "info");
+  }
+
+  const isDirty = () => state.doc !== null && C.serialise(state.doc) !== state.savedText;
+  const snapshot = () => Object.assign({}, state, { doc: state.doc && C.clone(state.doc) });
+
+  function commit(next, message) {
+    if (state.doc && C.serialise(next) === C.serialise(state.doc)) { render(); return; }
+    C.pushHistory(undoStack, snapshot());
+    state.doc = next;
+    render();
+    if (message) setStatus(message);
+  }
+
+  // Validates fully first; a failure leaves the current view and history untouched.
+  function loadText(text, name, handle) {
+    let doc;
+    try { doc = C.parse(text); } catch (error) { setStatus(`Could not load ${name}: ${error.message}`, "error"); return; }
+    C.pushHistory(undoStack, snapshot());
+    Object.assign(state, { doc, loadedText: text, savedText: C.serialise(doc), fileName: name, fileHandle: handle || null });
+    render();
+    setStatus(`Loaded ${name}.`);
+  }
+
+  async function loadFileObject(file, handle) {
+    try { loadText(await file.text(), file.name, handle); } catch (error) { setStatus(`Could not read ${file.name}: ${error.message}`, "error"); }
+  }
+
+  async function onLoad() {
+    if (typeof window.showOpenFilePicker !== "function") { $("file-input").click(); return; }
+    try {
+      const [handle] = await window.showOpenFilePicker({ types: [{ description: "Group board JSON", accept: { "application/json": [".json"] } }] });
+      await loadFileObject(await handle.getFile(), handle);
+    } catch (error) {
+      if (error && error.name === "AbortError") return;
+      setStatus(`Could not open the file: ${error.message}`, "error");
+    }
+  }
+
+  function download(text, name) {
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = name; link.hidden = true;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  async function onSave() {
+    if (!state.doc) return;
+    const text = C.serialise(state.doc);
+    if (typeof window.showSaveFilePicker === "function") {
+      try {
+        const options = { suggestedName: state.fileName, types: [{ description: "Group board JSON", accept: { "application/json": [".json"] } }] };
+        if (state.fileHandle) options.startIn = state.fileHandle;
+        const handle = await window.showSaveFilePicker(options);
+        const writable = await handle.createWritable();
+        await writable.write(text);
+        await writable.close();
+        state.fileName = handle.name; state.fileHandle = handle;
+        setStatus(`Saved ${handle.name}.`);
+      } catch (error) {
+        if (error && error.name === "AbortError") { setStatus("Save cancelled."); return; }
+        setStatus(`Could not save: ${error.message}`, "error");
+        return;
+      }
+    } else {
+      download(text, state.fileName);
+      setStatus(`Downloaded ${state.fileName}. Move it to its project folder.`);
+    }
+    state.savedText = text;
+    updateButtons();
+  }
+
+  function onUndo() {
+    const previous = undoStack.pop();
+    if (!previous) return;
+    Object.assign(state, previous);
+    render();
+    setStatus("Undone.");
+  }
+
+  function onReset() {
+    if (!state.doc || state.loadedText === null) return;
+    commit(C.parse(state.loadedText), "Reset to the file as last loaded.");
+  }
+
+  function startBlank() {
+    const doc = C.blankBoard(), text = C.serialise(doc);
+    Object.assign(state, { doc, loadedText: text, savedText: text, fileName: "group-board.json", fileHandle: null });
+  }
+
+  function onNew() {
+    if (isDirty() && !window.confirm("Discard unsaved changes and start a new board?")) return;
+    C.pushHistory(undoStack, snapshot());
+    startBlank();
+    render();
+    setStatus("New board ready.");
+  }
+
+  function updateButtons() {
+    const loaded = state.doc !== null;
+    ["save", "reset", "title-button", "add-person", "add-people", "add-group"].forEach(id => { $(id).disabled = !loaded; });
+    $("undo").disabled = undoStack.length === 0;
+    document.title = loaded ? `${isDirty() ? "* " : ""}${state.doc.title} — Group board` : "Group board";
+  }
+
+  function tagChips(tags, className) {
+    const box = el("div", className);
+    tags.forEach(([tag, count]) => box.append(el("span", "tag", count === undefined ? tag : `${tag} × ${count}`)));
+    return box;
+  }
+
+  function cardElement(person, colour, isLead, query) {
+    const node = el("div", "card");
+    node.tabIndex = 0;
+    node.dataset.personId = person.id;
+    if (colour) node.style.setProperty("--colour", colour);
+    const name = el("div", "card-name");
+    name.append(el("span", "person-name", person.name));
+    if (isLead) {
+      node.classList.add("lead");
+      const star = el("span", "star", "★");
+      star.setAttribute("title", "Group lead");
+      name.append(star);
+    }
+    node.append(name);
+    const meta = [person.organisation, person.role].filter(value => typeof value === "string" && value !== "").join(" · ");
+    if (meta) node.append(el("div", "card-meta", meta));
+    if (person.tags && person.tags.length) node.append(tagChips(person.tags.map(tag => [tag]), "tags"));
+    if (typeof person.note === "string" && person.note !== "") node.append(el("div", "card-note", person.note));
+    if (query.trim() !== "") node.classList.add(C.matches(person, query) ? "match" : "dim");
+    node.addEventListener("pointerdown", event => startPointer(event, person.id, node));
+    node.addEventListener("keydown", event => { if (event.key === "Enter") openPerson(person.id); });
+    return node;
+  }
+
+  function columnElement(entry, query) {
+    const tray = entry.group === null, group = entry.group;
+    const column = el("section", tray ? "column tray" : "column");
+    column.dataset.groupId = tray ? "" : group.id;
+    if (!tray) column.style.setProperty("--colour", group.colour);
+    const head = el("div", "column-head");
+    if (!tray) head.append(el("span", "swatch"));
+    head.append(el("span", "column-title", tray ? "Unassigned" : group.label), el("span", "count", String(entry.count)));
+    if (!tray) {
+      const edit = el("button", "small group-edit", "Edit");
+      edit.type = "button";
+      edit.addEventListener("click", () => openGroup(group.id));
+      head.append(edit);
+    }
+    column.append(head);
+    if (!tray && typeof group.note === "string" && group.note !== "") column.append(el("div", "group-note", group.note));
+    if (!tray && entry.lead) column.append(el("div", "group-lead", `★ Lead: ${entry.lead.name}`));
+    if (entry.tags.length) column.append(tagChips(entry.tags, "tag-summary"));
+    const cards = el("div", "cards");
+    entry.members.forEach(person => cards.append(cardElement(person, tray ? null : group.colour, Boolean(entry.lead && entry.lead.id === person.id), query)));
+    if (entry.members.length === 0) cards.append(el("p", "empty", tray ? "Everyone is in a group." : "Drag people here."));
+    column.append(cards);
+    return column;
+  }
+
+  function render() {
+    updateButtons();
+    const doc = state.doc, board = $("board");
+    $("doc-title").textContent = doc ? doc.title : "Group board";
+    board.replaceChildren();
+    if (!doc) return;
+    const view = C.summary(doc), query = $("search").value;
+    board.append(columnElement(Object.assign({ group: null, lead: null }, view.tray), query));
+    view.groups.forEach(entry => board.append(columnElement(entry, query)));
+  }
+
+  function onSearch() {
+    render();
+    const query = $("search").value;
+    if (query.trim() === "" || !state.doc) { setStatus(""); return; }
+    const found = state.doc.people.filter(person => C.matches(person, query)).length;
+    setStatus(`${found} of ${state.doc.people.length} people match "${query.trim()}".`);
+  }
+
+  // Pointer drag: a press without movement opens the form; a drag drops the card on a column.
+  function startPointer(event, id, node) {
+    if (event.button !== 0 || !state.doc) return;
+    event.preventDefault();
+    const doc = state.doc, origin = { x: event.clientX, y: event.clientY };
+    let moved = false, hinted = null;
+    const columnAt = (x, y) => { const over = document.elementFromPoint(x, y); return over ? over.closest(".column") : null; };
+    const onMove = e => {
+      if (!moved && Math.hypot(e.clientX - origin.x, e.clientY - origin.y) < 4) return;
+      moved = true;
+      node.classList.add("dragging");
+      node.style.transform = `translate(${e.clientX - origin.x}px, ${e.clientY - origin.y}px)`;
+      const column = columnAt(e.clientX, e.clientY);
+      if (column !== hinted) {
+        if (hinted) hinted.classList.remove("drop-hint");
+        if (column) column.classList.add("drop-hint");
+        hinted = column;
+      }
+    };
+    const onUp = e => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      if (hinted) hinted.classList.remove("drop-hint");
+      if (e.type === "pointercancel") { render(); return; }
+      if (!moved) { openPerson(id); return; }
+      const column = columnAt(e.clientX, e.clientY);
+      if (!column) { render(); return; }
+      const groupId = column.dataset.groupId === "" ? null : column.dataset.groupId;
+      try {
+        const label = groupId === null ? "Unassigned" : doc.groups.find(group => group.id === groupId).label;
+        commit(C.movePerson(doc, id, groupId), `Moved to ${label}.`);
+      } catch (error) { render(); setStatus(error.message, "error"); }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  }
+
+  function fillSelect(select, options, value) {
+    select.replaceChildren(...options.map(([optionValue, label]) => {
+      const option = el("option", "", label);
+      option.value = optionValue;
+      return option;
+    }));
+    select.value = value;
+  }
+
+  function syncLead() {
+    const none = $("p-group").value === "";
+    $("p-lead").disabled = none;
+    if (none) $("p-lead").checked = false;
+  }
+
+  function openPerson(id) {
+    const doc = state.doc;
+    if (!doc) return;
+    editingPerson = id;
+    const person = id === null ? null : doc.people.find(item => item.id === id);
+    const text = key => person && typeof person[key] === "string" ? person[key] : "";
+    $("p-heading").textContent = person ? "Edit person" : "Add person";
+    $("p-name").value = text("name");
+    $("p-organisation").value = text("organisation");
+    $("p-role").value = text("role");
+    editingTagsText = person && person.tags ? person.tags.join(", ") : "";
+    $("p-tags").value = editingTagsText;
+    $("p-note").value = text("note");
+    const groupId = person && typeof person.group === "string" ? person.group : "";
+    fillSelect($("p-group"), [["", "Unassigned"], ...doc.groups.map(group => [group.id, group.label])], groupId);
+    $("p-lead").checked = Boolean(person && groupId && doc.groups.find(group => group.id === groupId).lead === person.id);
+    syncLead();
+    $("p-error").textContent = "";
+    $("p-delete").hidden = !person;
+    $("person-dialog").showModal();
+    $("p-name").focus();
+  }
+
+  function onPersonSubmit(event) {
+    event.preventDefault();
+    const fields = {
+      name: $("p-name").value, organisation: $("p-organisation").value, role: $("p-role").value, note: $("p-note").value,
+      group: $("p-group").value === "" ? null : $("p-group").value, lead: $("p-lead").checked
+    };
+    // Unchanged tag text is not re-parsed, so tags containing commas survive an edit of other fields.
+    if ($("p-tags").value !== editingTagsText) fields.tags = C.parseTags($("p-tags").value);
+    try {
+      const next = editingPerson === null ? C.addPerson(state.doc, fields) : C.updatePerson(state.doc, editingPerson, fields);
+      $("person-dialog").close();
+      commit(next, editingPerson === null ? "Person added." : "Person updated.");
+    } catch (error) { $("p-error").textContent = error.message; }
+  }
+
+  function onPersonDelete() {
+    if (editingPerson === null) return;
+    const next = C.deletePerson(state.doc, editingPerson);
+    $("person-dialog").close();
+    commit(next, "Person deleted.");
+  }
+
+  function openPaste() {
+    if (!state.doc) return;
+    $("paste-text").value = "";
+    $("paste-error").textContent = "";
+    $("paste-dialog").showModal();
+    $("paste-text").focus();
+  }
+
+  function onPasteSubmit(event) {
+    event.preventDefault();
+    const { rows, skipped } = C.parsePaste($("paste-text").value);
+    if (rows.length === 0) { $("paste-error").textContent = "Write at least one name."; return; }
+    try {
+      const next = C.addPeople(state.doc, rows);
+      $("paste-dialog").close();
+      commit(next, `Added ${rows.length} ${rows.length === 1 ? "person" : "people"} to Unassigned.${skipped ? ` Skipped ${skipped} line(s) without a name.` : ""}`);
+    } catch (error) { $("paste-error").textContent = error.message; }
+  }
+
+  function openGroup(id) {
+    const doc = state.doc;
+    if (!doc) return;
+    editingGroup = id;
+    const group = doc.groups.find(item => item.id === id), index = doc.groups.indexOf(group);
+    $("g-heading").textContent = "Edit group";
+    $("g-label").value = group.label;
+    $("g-colour").value = group.colour.toLowerCase();
+    $("g-note").value = typeof group.note === "string" ? group.note : "";
+    const members = doc.people.filter(person => person.group === id);
+    fillSelect($("g-lead"), [["", "No lead"], ...members.map(person => [person.id, person.name])], typeof group.lead === "string" ? group.lead : "");
+    $("g-earlier").disabled = index === 0;
+    $("g-later").disabled = index === doc.groups.length - 1;
+    $("g-error").textContent = "";
+    $("group-dialog").showModal();
+    $("g-label").focus();
+  }
+
+  function onGroupSubmit(event) {
+    event.preventDefault();
+    try {
+      const next = C.updateGroup(state.doc, editingGroup, { label: $("g-label").value, colour: $("g-colour").value, note: $("g-note").value, lead: $("g-lead").value });
+      $("group-dialog").close();
+      commit(next, "Group updated.");
+    } catch (error) { $("g-error").textContent = error.message; }
+  }
+
+  function onGroupMove(delta) {
+    const next = C.moveGroup(state.doc, editingGroup, delta);
+    $("group-dialog").close();
+    commit(next, "Group moved.");
+  }
+
+  function onGroupDelete() {
+    const group = state.doc.groups.find(item => item.id === editingGroup);
+    const next = C.deleteGroup(state.doc, editingGroup);
+    $("group-dialog").close();
+    commit(next, `Deleted ${group.label}; its members are now in Unassigned.`);
+  }
+
+  function onAddGroup() {
+    const next = C.addGroup(state.doc);
+    commit(next, "Group added.");
+    openGroup(next.groups[next.groups.length - 1].id);
+  }
+
+  function openTitle() {
+    if (!state.doc) return;
+    $("t-title").value = state.doc.title;
+    $("t-error").textContent = "";
+    $("title-dialog").showModal();
+    $("t-title").focus();
+  }
+
+  function onTitleSubmit(event) {
+    event.preventDefault();
+    const title = $("t-title").value;
+    if (title.trim() === "") { $("t-error").textContent = "Give the board a title."; return; }
+    const next = C.clone(state.doc);
+    next.title = title;
+    $("title-dialog").close();
+    commit(C.validate(next), "Title updated.");
+  }
+
+  $("new").addEventListener("click", onNew);
+  $("load").addEventListener("click", onLoad);
+  $("save").addEventListener("click", onSave);
+  $("undo").addEventListener("click", onUndo);
+  $("reset").addEventListener("click", onReset);
+  $("title-button").addEventListener("click", openTitle);
+  $("add-person").addEventListener("click", () => openPerson(null));
+  $("add-people").addEventListener("click", openPaste);
+  $("add-group").addEventListener("click", onAddGroup);
+  $("search").addEventListener("input", onSearch);
+  $("file-input").addEventListener("change", event => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (file) loadFileObject(file, null);
+  });
+  $("person-form").addEventListener("submit", onPersonSubmit);
+  $("p-group").addEventListener("change", syncLead);
+  $("p-delete").addEventListener("click", onPersonDelete);
+  $("p-cancel").addEventListener("click", () => $("person-dialog").close());
+  $("paste-form").addEventListener("submit", onPasteSubmit);
+  $("paste-cancel").addEventListener("click", () => $("paste-dialog").close());
+  $("group-form").addEventListener("submit", onGroupSubmit);
+  $("g-earlier").addEventListener("click", () => onGroupMove(-1));
+  $("g-later").addEventListener("click", () => onGroupMove(1));
+  $("g-delete").addEventListener("click", onGroupDelete);
+  $("g-cancel").addEventListener("click", () => $("group-dialog").close());
+  $("title-form").addEventListener("submit", onTitleSubmit);
+  $("t-cancel").addEventListener("click", () => $("title-dialog").close());
+  document.addEventListener("dragover", event => {
+    if (event.dataTransfer && [...event.dataTransfer.types].includes("Files")) event.preventDefault();
+  });
+  document.addEventListener("drop", event => {
+    const file = event.dataTransfer && event.dataTransfer.files[0];
+    if (!file) return;
+    event.preventDefault();
+    loadFileObject(file, null);
+  });
+  window.addEventListener("beforeunload", event => {
+    if (!isDirty()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+  startBlank();
+  render();
+  setStatus("New board ready. Add people (or paste a list), add groups, then drag people into groups.");
+})();
+</script>
+</body>
+</html>

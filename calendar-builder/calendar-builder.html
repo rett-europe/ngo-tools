@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>Calendar builder</title>
+<style>
+  :root { --line: #d7dbe0; --muted: #5d6670; --bg: #f6f7f9; --accent: #2f5d8a; --danger: #b3261e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1d2329; background: var(--bg); }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+  header h1 { font-size: 24px; margin: 0 auto 0 0; }
+  button { font: inherit; padding: 5px 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #status { min-height: 1.4em; padding: 4px 16px; color: var(--muted); }
+  #status[data-kind="error"] { color: var(--danger); font-weight: 600; }
+  .row { display: flex; gap: 8px; } .row > div { flex: 1 1 0; }
+  .hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+  #s-error { color: var(--danger); min-height: 1.2em; margin: 8px 0 0; }
+  main { padding: 0 16px 24px; }
+  .board { display: flex; gap: 10px; align-items: flex-start; overflow-x: auto; padding-bottom: 8px; }
+  .axis { position: relative; width: 44px; flex: none; }
+  .axis-spacer { height: 55px; }
+  .axis-body { position: relative; }
+  .axis-body span { position: absolute; right: 4px; transform: translateY(-50%); font-size: 12px; color: var(--muted); }
+  .day { flex: 1 1 0; min-width: 220px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+  .day-head { height: 32px; padding: 6px 8px; font-weight: 600; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-heads { height: 22px; display: flex; border-bottom: 1px solid var(--line); }
+  .track-heads div { flex: 1 1 0; padding: 1px 6px; font-size: 12px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .track-heads div + div, .lane + .lane { border-left: 1px dashed var(--line); }
+  .day-body { position: relative; display: flex; background-image: linear-gradient(to bottom, var(--line) 1px, transparent 1px); }
+  .lane { flex: 1 1 0; }
+  .block { position: absolute; padding: 2px 6px; border-radius: 5px; overflow: hidden; font-size: 12px; cursor: grab; user-select: none; touch-action: none; border: 1px solid rgba(0,0,0,.18); }
+  .block:focus-visible { outline: 2px solid #111; outline-offset: 1px; }
+  .block.dragging { pointer-events: none; opacity: .8; z-index: 30; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+  .block.overlap { outline: 3px solid var(--danger); outline-offset: -1px; }
+  .block-title { font-weight: 600; }
+  .block-meta, .block-note { opacity: .9; }
+  .block-note { font-style: italic; }
+  .flag { font-weight: 700; margin-left: 4px; }
+  .handle { position: absolute; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+  .handle-top { top: 0; } .handle-bottom { bottom: 0; }
+  .lower { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; }
+  section.panel { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; flex: 1 1 320px; }
+  section.panel h2 { font-size: 14px; margin: 4px 0 8px; }
+  #tray { min-height: 70px; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
+  #tray .block { position: relative; width: 190px; min-height: 56px; }
+  #tray-panel.drop-hint { border-color: var(--accent); background: #eef3f8; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border-bottom: 1px solid var(--line); padding: 3px 6px; text-align: left; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+  dialog { border: 1px solid var(--line); border-radius: 10px; padding: 16px; width: min(420px, 94vw); }
+  dialog h2 { margin: 0; font-size: 18px; }
+  dialog label { display: block; margin: 8px 0 2px; font-size: 12px; color: var(--muted); }
+  dialog input, dialog select, dialog textarea { width: 100%; font: inherit; padding: 4px 6px; }
+  .dialog-buttons { display: flex; gap: 8px; margin-top: 14px; }
+  .dialog-buttons .spacer { margin-left: auto; }
+  #f-error { color: var(--danger); min-height: 1.2em; margin: 8px 0 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="doc-title">Calendar builder</h1>
+  <button id="settings" type="button" class="primary">Event settings…</button>
+  <button id="new" type="button">New</button>
+  <button id="load" type="button">Load…</button>
+  <button id="save" type="button" disabled>Save</button>
+  <button id="add" type="button" disabled>Add block</button>
+  <button id="undo" type="button" disabled>Undo</button>
+  <button id="reset" type="button" disabled>Reset</button>
+  <input id="file-input" type="file" accept=".json,application/json" hidden>
+</header>
+<div id="status" role="status" aria-live="polite"></div>
+<main id="workspace">
+  <div id="board" class="board"></div>
+  <div class="lower">
+    <section class="panel" id="tray-panel"><h2>Tray (unscheduled)</h2><div id="tray"></div></section>
+    <section class="panel"><h2>Totals</h2><div id="totals"></div></section>
+  </div>
+</main>
+<dialog id="block-dialog">
+  <form id="block-form">
+    <h2 id="f-heading">Block</h2>
+    <label for="f-title">Title</label><input id="f-title" type="text" required>
+    <label for="f-type">Type</label><select id="f-type"></select>
+    <label for="f-day">Day</label><select id="f-day"></select>
+    <div id="f-placed">
+      <label for="f-track">Track</label><select id="f-track"></select>
+      <label for="f-start">Start</label><select id="f-start"></select>
+      <label for="f-end">End</label><select id="f-end"></select>
+    </div>
+    <div id="f-unplaced">
+      <label for="f-duration">Duration</label><select id="f-duration"></select>
+    </div>
+    <label for="f-note">Note (optional)</label><textarea id="f-note" rows="2"></textarea>
+    <p id="f-error" role="alert"></p>
+    <div class="dialog-buttons">
+      <button id="f-save" type="submit" class="primary">Apply</button>
+      <button id="f-delete" type="button">Delete</button>
+      <button id="f-cancel" type="button" class="spacer">Cancel</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="settings-dialog">
+  <form id="settings-form">
+    <h2>Event settings</h2>
+    <label for="s-title">Title</label><input id="s-title" type="text" required>
+    <div class="row">
+      <div><label for="s-start">Day starts</label><input id="s-start" type="time" step="300" required></div>
+      <div><label for="s-end">Day ends</label><input id="s-end" type="time" step="300" required></div>
+      <div><label for="s-interval">Grid</label><select id="s-interval"></select></div>
+    </div>
+    <label for="s-days">Days (one per line)</label><textarea id="s-days" rows="3"></textarea>
+    <label for="s-tracks">Tracks (one per line)</label><textarea id="s-tracks" rows="2"></textarea>
+    <label for="s-types">Block types (one per line)</label><textarea id="s-types" rows="3"></textarea>
+    <p class="hint">Lines match by position, so renaming a line keeps its blocks. Blocks on a removed day or track, or outside the new hours or grid, move to the tray.</p>
+    <p id="s-error" role="alert"></p>
+    <div class="dialog-buttons">
+      <button type="submit" class="primary">Apply</button>
+      <button id="s-cancel" type="button" class="spacer">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<script id="core">
+"use strict";
+// Pure calendar logic with no page or storage access. Operations return a new calendar object.
+const TOOL = "ngo-tools-calendar-builder";
+const VERSION = 1;
+const DEFAULT_INTERVAL = 30;
+const UNDO_LIMIT = 150;
+const ALL_TRACKS = "*";
+const PLACED_KEYS = ["day", "track", "start", "end"];
+
+const clone = value => JSON.parse(JSON.stringify(value));
+const isObject = value => typeof value === "object" && value !== null && !Array.isArray(value);
+const isText = value => typeof value === "string" && value.trim() !== "";
+const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+const quote = value => value === undefined ? "nothing" : JSON.stringify(value);
+const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+
+function fail(message) { throw new Error(message); }
+
+function parseTime(text) {
+  if (typeof text !== "string") return null;
+  const match = /^(\d\d):(\d\d)$/.exec(text);
+  if (!match) return null;
+  const hours = Number(match[1]), minutes = Number(match[2]);
+  if (minutes > 59 || hours > 24 || (hours === 24 && minutes !== 0)) return null;
+  return hours * 60 + minutes;
+}
+
+function formatTime(minutes) {
+  return String(Math.floor(minutes / 60)).padStart(2, "0") + ":" + String(minutes % 60).padStart(2, "0");
+}
+
+function formatDuration(minutes) {
+  if (minutes < 60) return minutes + " min";
+  const hours = Math.floor(minutes / 60), rest = minutes % 60;
+  return hours + " h" + (rest ? " " + rest + " min" : "");
+}
+
+// Time span start and end in minutes, and the grid interval (30 when the file has none).
+function grid(doc) {
+  return { start: parseTime(doc.window.start), end: parseTime(doc.window.end), interval: has(doc, "interval") ? doc.interval : DEFAULT_INTERVAL };
+}
+
+const isPlaced = block => has(block, "day");
+const blockDuration = block => isPlaced(block) ? parseTime(block.end) - parseTime(block.start) : block.duration;
+
+function checkList(doc, key, what, check) {
+  const list = doc[key];
+  if (!Array.isArray(list)) fail(`"${key}" must be a list.`);
+  const seen = new Set();
+  list.forEach((item, index) => {
+    if (!isObject(item)) fail(`Entry ${index + 1} in "${key}" must be an object.`);
+    if (!isText(item.id)) fail(`Entry ${index + 1} in "${key}" needs a non-empty text "id".`);
+    if (seen.has(item.id)) fail(`Duplicate ${what.toLowerCase()} id ${quote(item.id)} in "${key}".`);
+    seen.add(item.id);
+    check(item, `${what} ${quote(item.id)}`);
+  });
+  return seen;
+}
+
+function needLabel(item, where) {
+  if (!isText(item.label)) fail(`${where} needs a non-empty text "label".`);
+}
+
+// Full validation; throws an Error naming the first problem. Never changes its input.
+function validate(doc) {
+  if (!isObject(doc)) fail("The file does not contain a JSON object.");
+  if (doc.tool !== TOOL) {
+    if (typeof doc.tool === "string") fail(`This file is for ${quote(doc.tool)}, not for ${quote(TOOL)}.`);
+    fail(`This file does not say it belongs to ${quote(TOOL)} (missing "tool").`);
+  }
+  if (!Number.isInteger(doc.version) || doc.version < 1) fail(`"version" must be a whole number of at least 1; found ${quote(doc.version)}.`);
+  if (doc.version > VERSION) fail(`This file was made by a newer version of this tool (format version ${doc.version}); this calendar builder reads version ${VERSION}.`);
+  if (!isText(doc.title)) fail(`"title" must be non-empty text.`);
+  if (!isObject(doc.window)) fail(`"window" must be an object with "start" and "end" times.`);
+  const ws = parseTime(doc.window.start), we = parseTime(doc.window.end);
+  if (ws === null) fail(`Window start ${quote(doc.window.start)} is not a time from 00:00 to 24:00 written as HH:MM.`);
+  if (we === null) fail(`Window end ${quote(doc.window.end)} is not a time from 00:00 to 24:00 written as HH:MM.`);
+  if (we <= ws) fail(`Window end ${doc.window.end} must be after window start ${doc.window.start}.`);
+  if (has(doc, "interval")) {
+    if (!Number.isInteger(doc.interval) || doc.interval <= 0) fail(`"interval" must be a positive whole number of minutes; found ${quote(doc.interval)}.`);
+    if ((we - ws) % doc.interval !== 0) fail(`"interval" ${doc.interval} does not divide the window ${doc.window.start}–${doc.window.end} into whole steps.`);
+  }
+  const { interval } = grid(doc);
+  const days = checkList(doc, "days", "Day", needLabel);
+  if (days.size === 0) fail(`"days" must list at least one day.`);
+  const tracks = checkList(doc, "tracks", "Track", (track, where) => {
+    if (track.id === ALL_TRACKS) fail(`"${ALL_TRACKS}" is reserved for all tracks and cannot be a track id.`);
+    needLabel(track, where);
+  });
+  if (tracks.size === 0) fail(`"tracks" must list at least one track.`);
+  const types = checkList(doc, "types", "Type", (type, where) => {
+    needLabel(type, where);
+    if (typeof type.colour !== "string" || !/^#[0-9a-fA-F]{6}$/.test(type.colour)) fail(`${where} needs a "colour" written as #rrggbb; found ${quote(type.colour)}.`);
+    if (typeof type.counts !== "boolean") fail(`${where} needs "counts" set to true or false.`);
+  });
+  const checkTime = (block, key, where) => {
+    const minutes = parseTime(block[key]);
+    if (minutes === null) fail(`${where} ${key} ${quote(block[key])} is not a time written as HH:MM.`);
+    if (minutes < ws || minutes > we) fail(`${where} ${key} ${block[key]} is outside the window ${doc.window.start}–${doc.window.end}.`);
+    if ((minutes - ws) % interval !== 0) fail(`${where} ${key} ${block[key]} is not on the ${interval}-minute grid from ${doc.window.start}.`);
+    return minutes;
+  };
+  checkList(doc, "blocks", "Block", (block, where) => {
+    if (!isText(block.title)) fail(`${where} needs a non-empty text "title".`);
+    if (!types.has(block.type)) fail(`${where} refers to unknown type ${quote(block.type)}.`);
+    if (has(block, "note") && typeof block.note !== "string") fail(`${where} "note" must be text.`);
+    if (has(block, "approx") && typeof block.approx !== "boolean") fail(`${where} "approx" must be true or false.`);
+    const placedKeys = PLACED_KEYS.filter(key => has(block, key));
+    if (placedKeys.length > 0) {
+      if (has(block, "duration")) fail(`${where} has both a placement and a "duration"; a placed block uses start and end, a tray block uses duration only.`);
+      if (placedKeys.length < PLACED_KEYS.length) fail(`${where} is placed but lacks ${PLACED_KEYS.filter(key => !has(block, key)).map(key => `"${key}"`).join(", ")}.`);
+      if (!days.has(block.day)) fail(`${where} refers to unknown day ${quote(block.day)}.`);
+      if (block.track !== ALL_TRACKS && !tracks.has(block.track)) fail(`${where} refers to unknown track ${quote(block.track)}.`);
+      const start = checkTime(block, "start", where), end = checkTime(block, "end", where);
+      if (end <= start) fail(`${where} end ${block.end} must be after its start ${block.start}.`);
+    } else {
+      const duration = block.duration;
+      if (!has(block, "duration")) fail(`${where} needs either "day", "track", "start" and "end", or a "duration" for the tray.`);
+      if (!Number.isInteger(duration) || duration <= 0) fail(`${where} "duration" must be a positive whole number of minutes; found ${quote(duration)}.`);
+      if (duration % interval !== 0) fail(`${where} "duration" ${duration} is not a multiple of the ${interval}-minute interval.`);
+      if (duration > we - ws) fail(`${where} "duration" ${duration} is longer than the window.`);
+    }
+  });
+  return doc;
+}
+
+function parse(text) {
+  let doc;
+  try { doc = JSON.parse(text); } catch (error) { fail(`Not valid JSON: ${error.message}`); }
+  return validate(doc);
+}
+
+const serialise = doc => JSON.stringify(doc, null, 2) + "\n";
+
+function findBlock(doc, id) {
+  const block = doc.blocks.find(item => item.id === id);
+  if (!block) fail(`There is no block ${quote(id)}.`);
+  return block;
+}
+
+function snap(doc, minutes) {
+  const { start, interval } = grid(doc);
+  return start + Math.round((minutes - start) / interval) * interval;
+}
+
+// Moves a block (from the grid or the tray) to a day, track and start minute, snapped and kept inside the time span.
+function moveBlock(doc, id, target) {
+  const next = clone(doc), block = findBlock(next, id), g = grid(next);
+  const duration = blockDuration(block);
+  const start = clamp(snap(next, target.start), g.start, g.end - duration);
+  if (isPlaced(block) && block.day === target.day && block.track === target.track && parseTime(block.start) === start) return next;
+  delete block.duration;
+  Object.assign(block, { day: target.day, track: target.track, start: formatTime(start), end: formatTime(start + duration) });
+  delete block.approx;
+  return validate(next);
+}
+
+// Moves one edge ("start" or "end") of a placed block, snapped, inside the time span and at least one interval long.
+function resizeBlock(doc, id, edge, minutes) {
+  const next = clone(doc), block = findBlock(next, id), g = grid(next);
+  if (!isPlaced(block)) fail(`Block ${quote(id)} is in the tray and has no edges to resize.`);
+  let start = parseTime(block.start), end = parseTime(block.end);
+  if (edge === "start") start = clamp(snap(next, minutes), g.start, end - g.interval);
+  else if (edge === "end") end = clamp(snap(next, minutes), start + g.interval, g.end);
+  else fail(`Unknown edge ${quote(edge)}.`);
+  if (start === parseTime(block.start) && end === parseTime(block.end)) return next;
+  block.start = formatTime(start); block.end = formatTime(end);
+  delete block.approx;
+  return next;
+}
+
+// Unschedules a placed block: its length becomes "duration" and its placement is removed.
+function toTray(doc, id) {
+  const next = clone(doc), block = findBlock(next, id);
+  if (!isPlaced(block)) return next;
+  const duration = blockDuration(block);
+  PLACED_KEYS.forEach(key => { delete block[key]; });
+  delete block.approx;
+  block.duration = duration;
+  return next;
+}
+
+function applyFields(block, fields) {
+  if (has(fields, "title")) block.title = fields.title;
+  if (has(fields, "type")) block.type = fields.type;
+  if (has(fields, "note")) {
+    if (typeof fields.note === "string" && fields.note !== "") block.note = fields.note; else delete block.note;
+  }
+  if (has(fields, "day")) {
+    if (PLACED_KEYS.some(key => block[key] !== fields[key])) {
+      delete block.duration;
+      PLACED_KEYS.forEach(key => { block[key] = fields[key]; });
+      delete block.approx;
+    }
+  } else if (has(fields, "duration")) {
+    if (isPlaced(block) || block.duration !== fields.duration) {
+      PLACED_KEYS.forEach(key => { delete block[key]; });
+      block.duration = fields.duration;
+      delete block.approx;
+    }
+  }
+}
+
+// Form edit. Only the given fields change: title, type, note, and either day+track+start+end or duration.
+// A placement change clears "approx"; text-only edits keep it. An empty note removes the note.
+function updateBlock(doc, id, fields) {
+  const next = clone(doc);
+  applyFields(findBlock(next, id), fields);
+  return validate(next);
+}
+
+function newBlockId(doc) {
+  const ids = new Set(doc.blocks.map(block => block.id));
+  let n = doc.blocks.length + 1;
+  while (ids.has("block-" + n)) n += 1;
+  return "block-" + n;
+}
+
+// Appends a new block with a fresh id ("block-N"), using the same fields as updateBlock.
+function addBlock(doc, fields) {
+  const next = clone(doc);
+  const block = { id: newBlockId(next), title: fields.title, type: fields.type };
+  const { note, ...rest } = fields;
+  applyFields(block, rest);
+  if (typeof note === "string" && note !== "") block.note = note;
+  next.blocks.push(block);
+  return validate(next);
+}
+
+function deleteBlock(doc, id) {
+  const next = clone(doc);
+  findBlock(next, id);
+  next.blocks = next.blocks.filter(block => block.id !== id);
+  return next;
+}
+
+const sharesTrack = (a, b) => a === b || a === ALL_TRACKS || b === ALL_TRACKS;
+
+// Pairs [earlier id, later id] of placed blocks on the same day, sharing a track, intersecting with positive length.
+function overlaps(doc) {
+  const placed = doc.blocks.filter(isPlaced), pairs = [];
+  for (let i = 0; i < placed.length; i += 1) {
+    for (let j = i + 1; j < placed.length; j += 1) {
+      const a = placed[i], b = placed[j];
+      if (a.day !== b.day || !sharesTrack(a.track, b.track)) continue;
+      if (parseTime(a.start) < parseTime(b.end) && parseTime(b.start) < parseTime(a.end)) pairs.push([a.id, b.id]);
+    }
+  }
+  return pairs;
+}
+
+const overlapIds = doc => [...new Set(overlaps(doc).flat())];
+
+// Minutes per day, track and counting type: { day: { track: { type: minutes } } }. An all-tracks block counts in every track.
+function totals(doc) {
+  const counting = doc.types.filter(type => type.counts), result = {};
+  doc.days.forEach(day => {
+    result[day.id] = {};
+    doc.tracks.forEach(track => {
+      result[day.id][track.id] = {};
+      counting.forEach(type => { result[day.id][track.id][type.id] = 0; });
+    });
+  });
+  doc.blocks.filter(isPlaced).forEach(block => {
+    const type = doc.types.find(item => item.id === block.type);
+    if (!type || !type.counts) return;
+    const lanes = block.track === ALL_TRACKS ? doc.tracks.map(track => track.id) : [block.track];
+    lanes.forEach(track => { result[block.day][track][type.id] += blockDuration(block); });
+  });
+  return result;
+}
+
+// Bounded undo history: pushes an entry and drops the oldest beyond UNDO_LIMIT.
+function pushHistory(stack, entry) {
+  stack.push(entry);
+  while (stack.length > UNDO_LIMIT) stack.shift();
+  return stack;
+}
+
+function textColour(hex) {
+  const value = parseInt(hex.slice(1), 16);
+  const r = (value >> 16) & 255, g = (value >> 8) & 255, b = value & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? "#111111" : "#ffffff";
+}
+
+const PALETTE = ["#2f5d8a", "#c9a227", "#5b8c5a", "#8a4f7d", "#c0612b", "#4f8a8b", "#7a7a7a", "#a33b3b"];
+
+// A ready-to-edit event: one day, two tracks, a session and a break type, no blocks.
+function blankDoc() {
+  return validate({
+    tool: TOOL, version: VERSION, title: "New event",
+    window: { start: "09:00", end: "18:00" }, interval: DEFAULT_INTERVAL,
+    days: [{ id: "day-1", label: "Day 1" }],
+    tracks: [{ id: "track-1", label: "Track 1" }, { id: "track-2", label: "Track 2" }],
+    types: [
+      { id: "type-1", label: "Session", colour: PALETTE[0], counts: true },
+      { id: "type-2", label: "Break", colour: "#d9dde2", counts: false }
+    ],
+    blocks: []
+  });
+}
+
+function freshId(prefix, used) {
+  let n = 1;
+  while (used.has(prefix + n)) n += 1;
+  used.add(prefix + n);
+  return prefix + n;
+}
+
+// Labels match existing entries by position: keep id and other fields, change the label, add or drop the tail.
+function relabel(list, labels, prefix, extra) {
+  const used = new Set(list.map(item => item.id));
+  return labels.map((label, index) => index < list.length
+    ? Object.assign({}, list[index], { label })
+    : Object.assign({ id: freshId(prefix, used), label }, extra(index)));
+}
+
+// Applies { title, start, end, interval, days, tracks, types } (lists are label arrays). Misfit blocks go to the tray.
+function applySettings(doc, settings) {
+  const labels = (list, what) => {
+    const clean = list.map(text => String(text).trim()).filter(Boolean);
+    if (clean.length === 0) fail(`Give at least one ${what}.`);
+    return clean;
+  };
+  const next = clone(doc);
+  next.title = String(settings.title).trim();
+  next.window = Object.assign({}, next.window, { start: settings.start, end: settings.end });
+  next.interval = settings.interval;
+  const ws = parseTime(settings.start), we = parseTime(settings.end);
+  if (ws === null || we === null || we <= ws) fail("The day must end after it starts.");
+  if ((we - ws) % settings.interval !== 0) fail(`The hours ${settings.start}–${settings.end} are not a whole number of ${settings.interval}-minute steps.`);
+  next.days = relabel(doc.days, labels(settings.days, "day"), "day-", () => ({}));
+  next.tracks = relabel(doc.tracks, labels(settings.tracks, "track"), "track-", () => ({}));
+  next.types = relabel(doc.types, labels(settings.types, "block type"), "type-", index => ({ colour: PALETTE[index % PALETTE.length], counts: true }));
+  const typeIds = new Set(next.types.map(type => type.id));
+  const lost = next.blocks.filter(block => !typeIds.has(block.type));
+  if (lost.length) fail(`Block type "${doc.types.find(type => type.id === lost[0].type).label}" is still used by ${lost.length} block(s); change or delete them first.`);
+  const dayIds = new Set(next.days.map(day => day.id)), trackIds = new Set(next.tracks.map(track => track.id));
+  const onGrid = minutes => minutes !== null && minutes >= ws && minutes <= we && (minutes - ws) % settings.interval === 0;
+  next.blocks = next.blocks.map(block => {
+    if (isPlaced(block)) {
+      const fits = dayIds.has(block.day) && (block.track === ALL_TRACKS || trackIds.has(block.track))
+        && onGrid(parseTime(block.start)) && onGrid(parseTime(block.end));
+      if (fits) return block;
+      const duration = blockDuration(block);
+      const { day, track, start, end, ...rest } = block;
+      return Object.assign(rest, { duration: Math.max(settings.interval, Math.min(we - ws, Math.round(duration / settings.interval) * settings.interval)) });
+    }
+    return Object.assign({}, block, { duration: Math.max(settings.interval, Math.min(we - ws, Math.round(block.duration / settings.interval) * settings.interval)) });
+  });
+  return validate(next);
+}
+
+globalThis.ToolCore = Object.freeze({
+  TOOL, VERSION, DEFAULT_INTERVAL, UNDO_LIMIT, ALL_TRACKS,
+  parse, validate, serialise, clone, parseTime, formatTime, formatDuration, grid, isPlaced, blockDuration,
+  moveBlock, resizeBlock, toTray, updateBlock, addBlock, deleteBlock, overlaps, overlapIds, totals,
+  pushHistory, textColour, blankDoc, applySettings
+});
+</script>
+
+<script id="ui">
+"use strict";
+(function () {
+  const C = window.ToolCore;
+  const SLOT_PX = 24;
+  const $ = id => document.getElementById(id);
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const state = { doc: null, loadedText: null, savedText: null, fileName: "calendar.json", fileHandle: null };
+  const undoStack = [];
+  let editingId = null;
+
+  function setStatus(message, kind) {
+    const status = $("status");
+    status.textContent = message;
+    status.setAttribute("data-kind", kind || "info");
+  }
+
+  const isDirty = () => state.doc !== null && C.serialise(state.doc) !== state.savedText;
+  const snapshot = () => Object.assign({}, state, { doc: state.doc && C.clone(state.doc) });
+
+  function commit(next, message) {
+    if (state.doc && C.serialise(next) === C.serialise(state.doc)) { render(); return; }
+    C.pushHistory(undoStack, snapshot());
+    state.doc = next;
+    render();
+    if (message) setStatus(message);
+  }
+
+  // Validates fully first; a failure leaves the current view and history untouched.
+  function loadText(text, name, handle) {
+    let doc;
+    try { doc = C.parse(text); } catch (error) { setStatus(`Could not load ${name}: ${error.message}`, "error"); return; }
+    C.pushHistory(undoStack, snapshot());
+    Object.assign(state, { doc, loadedText: text, savedText: C.serialise(doc), fileName: name, fileHandle: handle || null });
+    render();
+    setStatus(`Loaded ${name}.`);
+  }
+
+  async function loadFileObject(file, handle) {
+    try { loadText(await file.text(), file.name, handle); } catch (error) { setStatus(`Could not read ${file.name}: ${error.message}`, "error"); }
+  }
+
+  async function onLoad() {
+    if (typeof window.showOpenFilePicker !== "function") { $("file-input").click(); return; }
+    try {
+      const [handle] = await window.showOpenFilePicker({ types: [{ description: "Calendar JSON", accept: { "application/json": [".json"] } }] });
+      await loadFileObject(await handle.getFile(), handle);
+    } catch (error) {
+      if (error && error.name === "AbortError") return;
+      setStatus(`Could not open the file: ${error.message}`, "error");
+    }
+  }
+
+  function download(text, name) {
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = name; link.hidden = true;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  async function onSave() {
+    if (!state.doc) return;
+    const text = C.serialise(state.doc);
+    if (typeof window.showSaveFilePicker === "function") {
+      try {
+        const options = { suggestedName: state.fileName, types: [{ description: "Calendar JSON", accept: { "application/json": [".json"] } }] };
+        if (state.fileHandle) options.startIn = state.fileHandle;
+        const handle = await window.showSaveFilePicker(options);
+        const writable = await handle.createWritable();
+        await writable.write(text);
+        await writable.close();
+        state.fileName = handle.name; state.fileHandle = handle;
+        setStatus(`Saved ${handle.name}.`);
+      } catch (error) {
+        if (error && error.name === "AbortError") { setStatus("Save cancelled."); return; }
+        setStatus(`Could not save: ${error.message}`, "error");
+        return;
+      }
+    } else {
+      download(text, state.fileName);
+      setStatus(`Downloaded ${state.fileName}. Move it to its project folder.`);
+    }
+    state.savedText = text;
+    updateButtons();
+  }
+
+  function onUndo() {
+    const previous = undoStack.pop();
+    if (!previous) return;
+    Object.assign(state, previous);
+    render();
+    setStatus("Undone.");
+  }
+
+  function onReset() {
+    if (!state.doc || state.loadedText === null) return;
+    commit(C.parse(state.loadedText), "Reset to the file as last loaded.");
+  }
+
+  function startBlank() {
+    const doc = C.blankDoc(), text = C.serialise(doc);
+    Object.assign(state, { doc, loadedText: text, savedText: text, fileName: "calendar.json", fileHandle: null });
+  }
+
+  function onNew() {
+    if (isDirty() && !window.confirm("Discard unsaved changes and start a new event?")) return;
+    C.pushHistory(undoStack, snapshot());
+    startBlank();
+    render();
+    openSettings();
+  }
+
+  function fillIntervals(select, value) {
+    const options = [5, 10, 15, 20, 30, 60];
+    if (!options.includes(value)) options.push(value);
+    fillSelect(select, options.sort((a, b) => a - b).map(m => [String(m), m + " min"]), String(value));
+  }
+
+  function openSettings() {
+    const doc = state.doc;
+    $("s-title").value = doc.title;
+    $("s-start").value = doc.window.start;
+    $("s-end").value = doc.window.end === "24:00" ? "23:59" : doc.window.end;
+    fillIntervals($("s-interval"), C.grid(doc).interval);
+    $("s-days").value = doc.days.map(day => day.label).join("\n");
+    $("s-tracks").value = doc.tracks.map(track => track.label).join("\n");
+    $("s-types").value = doc.types.map(type => type.label).join("\n");
+    $("s-error").textContent = "";
+    $("settings-dialog").showModal();
+    $("s-title").focus();
+  }
+
+  function onSettingsSubmit(event) {
+    event.preventDefault();
+    const lines = id => $(id).value.split(/\r?\n/);
+    try {
+      const next = C.applySettings(state.doc, {
+        title: $("s-title").value, start: $("s-start").value, end: $("s-end").value === "23:59" ? "24:00" : $("s-end").value, interval: Number($("s-interval").value),
+        days: lines("s-days"), tracks: lines("s-tracks"), types: lines("s-types")
+      });
+      $("settings-dialog").close();
+      commit(next, "Event settings updated.");
+    } catch (error) { $("s-error").textContent = error.message; }
+  }
+
+  function updateButtons() {
+    const loaded = state.doc !== null;
+    $("save").disabled = !loaded;
+    $("add").disabled = !loaded;
+    $("reset").disabled = !loaded;
+    $("settings").disabled = !loaded;
+    $("undo").disabled = undoStack.length === 0;
+    document.title = loaded ? `${isDirty() ? "* " : ""}${state.doc.title} — Calendar builder` : "Calendar builder";
+  }
+
+  function blockElement(block, type, flagged) {
+    const node = el("div", "block");
+    node.tabIndex = 0;
+    node.dataset.blockId = block.id;
+    node.style.background = type.colour;
+    node.style.color = C.textColour(type.colour);
+    const placed = C.isPlaced(block), duration = C.formatDuration(C.blockDuration(block));
+    const title = el("div", "block-title");
+    title.append(el("span", "block-name", block.title));
+    if (block.approx === true) {
+      const mark = el("span", "flag approx", "≈");
+      mark.setAttribute("title", "Approximate time");
+      title.append(mark);
+    }
+    if (flagged) {
+      node.classList.add("overlap");
+      const mark = el("span", "flag", "⚠");
+      mark.setAttribute("title", "Overlaps another block in the same track");
+      title.append(mark);
+    }
+    const meta = placed ? `${block.approx === true ? "≈ " : ""}${block.start}–${block.end} · ${duration}` : `${duration} · ${type.label}`;
+    node.append(title, el("div", "block-meta", meta));
+    if (typeof block.note === "string" && block.note !== "") node.append(el("div", "block-note", block.note));
+    node.setAttribute("title", [block.title, meta, block.note || ""].filter(Boolean).join("\n"));
+    if (placed) {
+      Object.assign(node.dataset, { day: block.day, track: block.track, start: block.start, end: block.end });
+      node.append(el("div", "handle handle-top"), el("div", "handle handle-bottom"));
+    } else node.dataset.tray = "true";
+    node.addEventListener("pointerdown", event => startPointer(event, block.id, node));
+    node.addEventListener("keydown", event => { if (event.key === "Enter") openDialog(block.id); });
+    return node;
+  }
+
+  function render() {
+    updateButtons();
+    const doc = state.doc;
+    $("workspace").hidden = doc === null;
+    $("doc-title").textContent = doc ? doc.title : "Calendar builder";
+    const board = $("board"), tray = $("tray"), totalsBox = $("totals");
+    board.replaceChildren(); tray.replaceChildren(); totalsBox.replaceChildren();
+    if (!doc) return;
+    const g = C.grid(doc), px = SLOT_PX / g.interval, height = (g.end - g.start) * px;
+    const flagged = new Set(C.overlapIds(doc));
+    const types = new Map(doc.types.map(type => [type.id, type]));
+
+    const axis = el("div", "axis"), axisBody = el("div", "axis-body");
+    axisBody.style.height = height + "px";
+    for (let m = g.start; m <= g.end; m += g.interval) {
+      if (g.interval < 60 && m % 60 !== 0 && m !== g.start && m !== g.end) continue;
+      const label = el("span", "", C.formatTime(m));
+      label.style.top = (m - g.start) * px + "px";
+      axisBody.append(label);
+    }
+    axis.append(el("div", "axis-spacer"), axisBody);
+    board.append(axis);
+
+    const width = 100 / doc.tracks.length;
+    doc.days.forEach(day => {
+      const column = el("div", "day"), heads = el("div", "track-heads"), body = el("div", "day-body");
+      column.dataset.day = day.id;
+      doc.tracks.forEach(track => heads.append(el("div", "", track.label)));
+      body.dataset.day = day.id;
+      body.style.height = height + "px";
+      body.style.backgroundSize = `100% ${SLOT_PX}px`;
+      doc.tracks.forEach(track => { const lane = el("div", "lane"); lane.dataset.track = track.id; body.append(lane); });
+      doc.blocks.filter(block => C.isPlaced(block) && block.day === day.id).forEach(block => {
+        const node = blockElement(block, types.get(block.type), flagged.has(block.id));
+        const all = block.track === C.ALL_TRACKS, index = doc.tracks.findIndex(track => track.id === block.track);
+        node.style.left = all ? "1px" : `calc(${index * width}% + 1px)`;
+        node.style.width = all ? "calc(100% - 2px)" : `calc(${width}% - 2px)`;
+        node.style.top = (C.parseTime(block.start) - g.start) * px + "px";
+        node.style.height = C.blockDuration(block) * px + "px";
+        body.append(node);
+      });
+      column.append(el("div", "day-head", day.label), heads, body);
+      board.append(column);
+    });
+
+    const unplaced = doc.blocks.filter(block => !C.isPlaced(block));
+    unplaced.forEach(block => tray.append(blockElement(block, types.get(block.type), false)));
+    if (unplaced.length === 0) tray.append(el("p", "", "No unscheduled blocks. Drag a block here to unschedule it."));
+    renderTotals(doc, totalsBox);
+  }
+
+  function renderTotals(doc, box) {
+    const counting = doc.types.filter(type => type.counts), sums = C.totals(doc);
+    if (counting.length === 0) { box.append(el("p", "", "No block type counts towards totals.")); return; }
+    const table = el("table"), thead = el("thead"), tbody = el("tbody"), head = el("tr");
+    head.append(el("th", "", "Day"), el("th", "", "Track"));
+    counting.forEach(type => {
+      const th = el("th", "num"), swatch = el("span", "swatch");
+      swatch.style.background = type.colour;
+      th.append(swatch, document.createTextNode(type.label));
+      head.append(th);
+    });
+    head.append(el("th", "num", "Total"));
+    thead.append(head);
+    doc.days.forEach(day => doc.tracks.forEach(track => {
+      const row = el("tr"), values = sums[day.id][track.id];
+      row.append(el("td", "", day.label), el("td", "", track.label));
+      let total = 0;
+      counting.forEach(type => { total += values[type.id]; row.append(el("td", "num", values[type.id] ? C.formatDuration(values[type.id]) : "—")); });
+      row.append(el("td", "num", total ? C.formatDuration(total) : "—"));
+      tbody.append(row);
+    }));
+    table.append(thead, tbody);
+    box.append(table);
+  }
+
+  // Pointer drag: a press without movement opens the form; dragging moves or resizes on release.
+  function startPointer(event, id, node) {
+    if (event.button !== 0 || !state.doc) return;
+    event.preventDefault();
+    const handle = event.target.closest(".handle");
+    const mode = handle ? (handle.classList.contains("handle-top") ? "start" : "end") : "move";
+    const doc = state.doc, g = C.grid(doc), px = SLOT_PX / g.interval;
+    const origin = { x: event.clientX, y: event.clientY }, rect = node.getBoundingClientRect();
+    const grab = mode === "end" ? rect.bottom - event.clientY : event.clientY - rect.top;
+    const body = node.closest(".day-body");
+    const edgeMinute = y => g.start + ((mode === "end" ? y + grab : y - grab) - body.getBoundingClientRect().top) / px;
+    let moved = false;
+    const onMove = e => {
+      if (!moved && Math.hypot(e.clientX - origin.x, e.clientY - origin.y) < 4) return;
+      moved = true;
+      if (mode === "move") {
+        node.classList.add("dragging");
+        node.style.transform = `translate(${e.clientX - origin.x}px, ${e.clientY - origin.y}px)`;
+        const over = document.elementFromPoint(e.clientX, e.clientY);
+        $("tray-panel").classList.toggle("drop-hint", Boolean(over && over.closest("#tray-panel")));
+        return;
+      }
+      const block = C.resizeBlock(doc, id, mode, edgeMinute(e.clientY)).blocks.find(item => item.id === id);
+      node.style.top = (C.parseTime(block.start) - g.start) * px + "px";
+      node.style.height = C.blockDuration(block) * px + "px";
+    };
+    const onUp = e => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      $("tray-panel").classList.remove("drop-hint");
+      if (e.type === "pointercancel") { render(); return; }
+      if (!moved) { if (mode === "move") openDialog(id); return; }
+      try {
+        if (mode !== "move") { commit(C.resizeBlock(doc, id, mode, edgeMinute(e.clientY)), "Block resized."); return; }
+        const target = document.elementFromPoint(e.clientX, e.clientY);
+        const dayBody = target && target.closest(".day-body");
+        if (dayBody) {
+          const box = dayBody.getBoundingClientRect(), block = doc.blocks.find(item => item.id === id);
+          const index = Math.min(doc.tracks.length - 1, Math.max(0, Math.floor((e.clientX - box.left) / box.width * doc.tracks.length)));
+          const track = block.track === C.ALL_TRACKS ? C.ALL_TRACKS : doc.tracks[index].id;
+          commit(C.moveBlock(doc, id, { day: dayBody.dataset.day, track, start: g.start + (e.clientY - grab - box.top) / px }), "Block moved.");
+        } else if (target && target.closest("#tray-panel")) commit(C.toTray(doc, id), "Block moved to the tray.");
+        else render();
+      } catch (error) { render(); setStatus(error.message, "error"); }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  }
+
+  function fillSelect(select, options, value) {
+    select.replaceChildren(...options.map(([optionValue, label]) => {
+      const option = el("option", "", label);
+      option.value = optionValue;
+      return option;
+    }));
+    select.value = value;
+  }
+
+  function syncPlacementFields() {
+    const tray = $("f-day").value === "";
+    $("f-placed").hidden = tray;
+    $("f-unplaced").hidden = !tray;
+  }
+
+  function openDialog(id) {
+    const doc = state.doc;
+    if (!doc) return;
+    if (id === null && doc.types.length === 0) { setStatus("Add a block type in Event settings before adding blocks.", "error"); return; }
+    editingId = id;
+    const block = id === null ? null : doc.blocks.find(item => item.id === id);
+    const g = C.grid(doc), times = [], durations = [];
+    for (let m = g.start; m <= g.end; m += g.interval) times.push(C.formatTime(m));
+    for (let m = g.interval; m <= g.end - g.start; m += g.interval) durations.push([String(m), C.formatDuration(m)]);
+    const placed = block ? C.isPlaced(block) : true, duration = block ? C.blockDuration(block) : g.interval;
+    const start = placed && block ? block.start : times[0];
+    const end = placed && block ? block.end : C.formatTime(Math.min(g.end, C.parseTime(start) + duration));
+    $("f-heading").textContent = block ? "Edit block" : "Add block";
+    $("f-title").value = block ? block.title : "";
+    fillSelect($("f-type"), doc.types.map(type => [type.id, type.label]), block ? block.type : doc.types[0].id);
+    fillSelect($("f-day"), [...doc.days.map(day => [day.id, day.label]), ["", "Tray (unscheduled)"]], placed ? (block ? block.day : doc.days[0].id) : "");
+    fillSelect($("f-track"), [...doc.tracks.map(track => [track.id, track.label]), [C.ALL_TRACKS, "All tracks"]], placed && block ? block.track : doc.tracks[0].id);
+    fillSelect($("f-start"), times.slice(0, -1).map(time => [time, time]), start);
+    fillSelect($("f-end"), times.slice(1).map(time => [time, time]), end);
+    fillSelect($("f-duration"), durations, String(duration));
+    $("f-note").value = block && typeof block.note === "string" ? block.note : "";
+    $("f-error").textContent = "";
+    $("f-delete").hidden = !block;
+    syncPlacementFields();
+    $("block-dialog").showModal();
+    $("f-title").focus();
+  }
+
+  function onDialogSubmit(event) {
+    event.preventDefault();
+    const fields = { title: $("f-title").value, type: $("f-type").value, note: $("f-note").value };
+    if ($("f-day").value === "") fields.duration = Number($("f-duration").value);
+    else Object.assign(fields, { day: $("f-day").value, track: $("f-track").value, start: $("f-start").value, end: $("f-end").value });
+    try {
+      const next = editingId === null ? C.addBlock(state.doc, fields) : C.updateBlock(state.doc, editingId, fields);
+      $("block-dialog").close();
+      commit(next, editingId === null ? "Block added." : "Block updated.");
+    } catch (error) { $("f-error").textContent = error.message; }
+  }
+
+  function onDelete() {
+    if (editingId === null) return;
+    const next = C.deleteBlock(state.doc, editingId);
+    $("block-dialog").close();
+    commit(next, "Block deleted.");
+  }
+
+  $("settings").addEventListener("click", openSettings);
+  $("new").addEventListener("click", onNew);
+  $("settings-form").addEventListener("submit", onSettingsSubmit);
+  $("s-cancel").addEventListener("click", () => $("settings-dialog").close());
+  $("load").addEventListener("click", onLoad);
+  $("save").addEventListener("click", onSave);
+  $("undo").addEventListener("click", onUndo);
+  $("reset").addEventListener("click", onReset);
+  $("add").addEventListener("click", () => openDialog(null));
+  $("file-input").addEventListener("change", event => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (file) loadFileObject(file, null);
+  });
+  $("block-form").addEventListener("submit", onDialogSubmit);
+  $("f-day").addEventListener("change", syncPlacementFields);
+  $("f-delete").addEventListener("click", onDelete);
+  $("f-cancel").addEventListener("click", () => $("block-dialog").close());
+  document.addEventListener("dragover", event => {
+    if (event.dataTransfer && [...event.dataTransfer.types].includes("Files")) event.preventDefault();
+  });
+  document.addEventListener("drop", event => {
+    const file = event.dataTransfer && event.dataTransfer.files[0];
+    if (!file) return;
+    event.preventDefault();
+    loadFileObject(file, null);
+  });
+  window.addEventListener("beforeunload", event => {
+    if (!isDirty()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+  startBlank();
+  render();
+  setStatus("New event ready. Use Event settings to set the title, days, tracks and hours, then Add block.");
+})();
+</script>
+</body>
+</html>

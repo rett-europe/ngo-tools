@@ -1,0 +1,145 @@
+{
+  "tool": "ngo-tools-budget-scenario-explorer",
+  "version": 1,
+  "title": "Example budget – scenario explorer",
+  "subtitle": "Synthetic example data. Replace it with your own budget.",
+  "periodLabel": "Year 2",
+  "eventLabel": "Congress",
+  "currency": "EUR",
+  "minorDigits": 2,
+  "cash": {
+    "start": 2500000,
+    "history": [
+      { "label": "Start of Year 1", "amount": 3000000 },
+      { "label": "End of Year 1", "amount": 2500000 }
+    ],
+    "endLabel": "End of Year 2"
+  },
+  "running": {
+    "otherIncome": 1001,
+    "costs": 300000,
+    "givingBaseline": 1000001,
+    "givingLabel": "Regular giving"
+  },
+  "eventCosts": {
+    "venue": 4000000,
+    "other": 700000,
+    "travel": 2500000,
+    "travellers": 25
+  },
+  "sponsorTiers": [
+    { "label": "Tier One", "baselinePrice": 1000000 },
+    { "label": "Tier Two", "baselinePrice": 500000 }
+  ],
+  "memberTiers": [
+    { "label": "Tier A", "baselineAmount": 200000 },
+    { "label": "Tier B", "baselineAmount": 100000 },
+    { "label": "Tier C", "baselineAmount": 50000 }
+  ],
+  "grant": { "label": "Pending grant" },
+  "fixedContribution": { "label": "Partner network", "amount": 150000 },
+  "feeOptions": ["Current fees", "Fees +25%", "Fees doubled"],
+  "bands": [
+    { "id": "A", "fees": [40000, 50000, 80000] },
+    { "id": "B", "fees": [25000, 31250, 50000] },
+    { "id": "C", "fees": [10000, 12500, 20000] }
+  ],
+  "members": [
+    { "id": "m1", "name": "Member Alpha", "band": "A", "info": "Example note" },
+    { "id": "m2", "name": "Member Bravo", "band": "A" },
+    { "id": "m3", "name": "Member Charlie", "band": "B" },
+    { "id": "m4", "name": "Member Delta", "band": "B" },
+    { "id": "m5", "name": "Member Echo", "band": "B" },
+    { "id": "m6", "name": "Member Foxtrot", "band": "C" },
+    { "id": "m7", "name": "Member Golf", "band": "C" },
+    { "id": "m8", "name": "Member Hotel", "band": "C" }
+  ],
+  "groups": {
+    "sponsors": { "title": "Sponsors", "help": "How many sponsors sign up at each tier, and the price of each package." },
+    "grant": { "title": "Grant", "help": "A grant that is not yet confirmed." },
+    "associations": { "title": "Member contributions", "help": "How many members contribute at each tier, and the amount each one gives." },
+    "fees": { "title": "Membership fees", "help": "Fee level and the share of members expected to pay." },
+    "running": { "title": "Running income", "help": "Regular giving as a share of the baseline." },
+    "event": { "title": "Congress costs", "help": "Price uplifts, contingency and the number of funded travellers." }
+  },
+  "controls": {
+    "tier1Count": { "label": "Tier One sponsors", "min": 0, "max": 6, "step": 1 },
+    "tier1Price": { "label": "Tier One price", "min": 500000, "max": 3000000, "step": 50000 },
+    "tier2Count": { "label": "Tier Two sponsors", "min": 0, "max": 10, "step": 1 },
+    "tier2Price": { "label": "Tier Two price", "min": 250000, "max": 1500000, "step": 25000 },
+    "member1Count": { "label": "Tier A members", "min": 0, "max": 10, "step": 1 },
+    "member1Amount": { "label": "Tier A contribution", "min": 0, "max": 500000, "step": 5000 },
+    "member2Count": { "label": "Tier B members", "min": 0, "max": 10, "step": 1 },
+    "member2Amount": { "label": "Tier B contribution", "min": 0, "max": 300000, "step": 5000 },
+    "member3Count": { "label": "Tier C members", "min": 0, "max": 10, "step": 1 },
+    "member3Amount": { "label": "Tier C contribution", "min": 0, "max": 200000, "step": 5000 },
+    "grant": { "label": "Grant amount", "min": 0, "max": 4000000, "step": 100000 },
+    "payShare": { "label": "Members paying", "min": 50, "max": 100, "step": 5 },
+    "giving": { "label": "Regular giving", "min": 0, "max": 120, "step": 5 },
+    "generalUplift": { "label": "General price uplift", "min": 0, "max": 15, "step": 1 },
+    "venueUplift": { "label": "Extra venue uplift", "min": 0, "max": 30, "step": 1 },
+    "contingency": { "label": "Contingency", "min": 0, "max": 20, "step": 1 },
+    "travellers": { "label": "Funded travellers", "min": 10, "max": 60, "step": 1 }
+  },
+  "defaults": {
+    "tier1Count": 2,
+    "tier1Price": 1000000,
+    "tier2Count": 3,
+    "tier2Price": 500000,
+    "member1Count": 1,
+    "member1Amount": 200000,
+    "member2Count": 2,
+    "member2Amount": 100000,
+    "member3Count": 2,
+    "member3Amount": 50000,
+    "grant": 0,
+    "payShare": 100,
+    "giving": 75,
+    "generalUplift": 3,
+    "venueUplift": 10,
+    "contingency": 10,
+    "travellers": 25,
+    "feeOption": 0
+  },
+  "presets": [
+    { "id": "base", "name": "Base case", "values": {} },
+    { "id": "downside", "name": "Downside", "values": { "tier1Count": 1, "tier2Count": 2, "payShare": 80, "giving": 50 } },
+    { "id": "grant", "name": "Grant awarded", "values": { "grant": 2000000 } },
+    { "id": "tiers", "name": "Higher tier prices", "values": { "tier1Price": 1500000, "tier2Price": 750000 } },
+    { "id": "members", "name": "More members contribute", "values": { "member1Count": 2, "member2Count": 4, "member3Count": 5 } },
+    { "id": "fee-1", "name": "Fees +25%", "values": { "feeOption": 1 } },
+    { "id": "combined", "name": "Combined", "values": { "grant": 1000000, "tier1Price": 1250000, "member2Count": 3, "feeOption": 1, "payShare": 90 } },
+    { "id": "half-giving", "name": "Half giving", "values": { "giving": 50 } }
+  ],
+  "startPreset": "base",
+  "scenarios": [
+    {
+      "name": "Example pinned scenario",
+      "values": {
+        "tier1Count": 3,
+        "tier1Price": 1000000,
+        "tier2Count": 2,
+        "tier2Price": 500000,
+        "member1Count": 1,
+        "member1Amount": 250000,
+        "member2Count": 3,
+        "member2Amount": 100000,
+        "member3Count": 1,
+        "member3Amount": 50000,
+        "grant": 500000,
+        "payShare": 95,
+        "giving": 80,
+        "generalUplift": 4,
+        "venueUplift": 12,
+        "contingency": 8,
+        "travellers": 30,
+        "feeOption": 2
+      }
+    }
+  ],
+  "notes": [
+    "All figures are synthetic example data.",
+    "Amounts are integers in minor units (cents for EUR) and are shown in major units.",
+    "Each derived amount is rounded half away from zero to a whole minor unit at the points listed in the README."
+  ]
+}

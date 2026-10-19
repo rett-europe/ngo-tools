@@ -1,0 +1,38 @@
+{
+  "tool": "ngo-tools-calendar-builder",
+  "version": 1,
+  "title": "Synthetic Summit",
+  "window": { "start": "09:00", "end": "18:00" },
+  "interval": 30,
+  "days": [
+    { "id": "d1", "label": "Day 1" },
+    { "id": "d2", "label": "Day 2" },
+    { "id": "d3", "label": "Day 3" }
+  ],
+  "tracks": [
+    { "id": "a", "label": "Track A" },
+    { "id": "b", "label": "Track B" }
+  ],
+  "types": [
+    { "id": "session", "label": "Session", "colour": "#3b6ea5", "counts": true },
+    { "id": "workshop", "label": "Workshop", "colour": "#4f8a5b", "counts": true },
+    { "id": "break", "label": "Break", "colour": "#c9ccd1", "counts": false }
+  ],
+  "blocks": [
+    { "id": "k1", "title": "Fictional keynote", "type": "session", "day": "d1", "track": "*", "start": "09:00", "end": "10:00", "approx": true },
+    { "id": "s1", "title": "Synthetic session one", "type": "session", "day": "d1", "track": "a", "start": "10:00", "end": "11:00", "note": "Room North" },
+    { "id": "w1", "title": "Practice workshop", "type": "workshop", "day": "d1", "track": "b", "start": "10:00", "end": "11:30" },
+    { "id": "br1", "title": "Coffee break", "type": "break", "day": "d1", "track": "*", "start": "11:30", "end": "12:00" },
+    { "id": "s2", "title": "Synthetic session two", "type": "session", "day": "d1", "track": "a", "start": "12:00", "end": "13:00" },
+    { "id": "l1", "title": "Lunch", "type": "break", "day": "d1", "track": "*", "start": "13:00", "end": "14:00" },
+    { "id": "s3", "title": "Panel on imaginary topics", "type": "session", "day": "d2", "track": "a", "start": "09:30", "end": "10:30", "approx": true },
+    { "id": "w2", "title": "Hands-on lab", "type": "workshop", "day": "d2", "track": "b", "start": "09:30", "end": "11:00" },
+    { "id": "br2", "title": "Coffee break", "type": "break", "day": "d2", "track": "*", "start": "11:00", "end": "11:30" },
+    { "id": "s4", "title": "Lightning talks", "type": "session", "day": "d2", "track": "b", "start": "11:30", "end": "12:30" },
+    { "id": "s5", "title": "Closing discussion", "type": "session", "day": "d3", "track": "a", "start": "10:00", "end": "11:00" },
+    { "id": "w3", "title": "Wrap-up workshop", "type": "workshop", "day": "d3", "track": "b", "start": "10:00", "end": "12:00" },
+    { "id": "k2", "title": "Fictional farewell", "type": "session", "day": "d3", "track": "*", "start": "15:00", "end": "15:30" },
+    { "id": "t1", "title": "Unscheduled talk", "type": "session", "duration": 60, "note": "Speaker to confirm" },
+    { "id": "t2", "title": "Spare workshop", "type": "workshop", "duration": 90 }
+  ]
+}
