@@ -1,6 +1,6 @@
 {
   "tool": "ngo-tools-budget-scenario-explorer",
-  "version": 1,
+  "version": 2,
   "title": "Example budget – scenario explorer",
   "subtitle": "Synthetic example data. Replace it with your own budget.",
   "periodLabel": "Year 2",
@@ -10,82 +10,426 @@
   "cash": {
     "start": 2500000,
     "history": [
-      { "label": "Start of Year 1", "amount": 3000000 },
-      { "label": "End of Year 1", "amount": 2500000 }
+      {
+        "label": "Start of Year 1",
+        "amount": 3000000
+      },
+      {
+        "label": "End of Year 1",
+        "amount": 2500000
+      }
     ],
     "endLabel": "End of Year 2"
   },
   "running": {
-    "otherIncome": 1001,
-    "costs": 300000,
-    "givingBaseline": 1000001,
-    "givingLabel": "Regular giving"
+    "income": [
+      {
+        "id": "donations",
+        "label": "Individual donations",
+        "amount": 900000
+      },
+      {
+        "id": "online",
+        "label": "Online fundraising",
+        "amount": 300000
+      },
+      {
+        "id": "other",
+        "label": "Other income",
+        "amount": 50000
+      }
+    ],
+    "costs": 1200000
   },
   "eventCosts": {
-    "venue": 4000000,
-    "other": 700000,
-    "travel": 2500000,
-    "travellers": 25
+    "categories": [
+      {
+        "id": "accommodation",
+        "label": "Accommodation"
+      },
+      {
+        "id": "catering",
+        "label": "Catering"
+      },
+      {
+        "id": "meeting-rooms",
+        "label": "Meeting rooms"
+      },
+      {
+        "id": "av",
+        "label": "Audiovisual"
+      },
+      {
+        "id": "organisation",
+        "label": "Organisation and staff"
+      },
+      {
+        "id": "travel",
+        "label": "Funded travel"
+      }
+    ],
+    "lines": [
+      {
+        "id": "line-1",
+        "category": "accommodation",
+        "item": "Double rooms, night 1",
+        "quantity": 40,
+        "unitCost": 15000
+      },
+      {
+        "id": "line-2",
+        "category": "accommodation",
+        "item": "Double rooms, night 2",
+        "quantity": 40,
+        "unitCost": 15000
+      },
+      {
+        "id": "line-3",
+        "category": "catering",
+        "item": "Welcome dinner",
+        "quantity": 80,
+        "unitCost": 4000
+      },
+      {
+        "id": "line-4",
+        "category": "catering",
+        "item": "Coffee breaks (3 per person)",
+        "quantity": 240,
+        "unitCost": 1100
+      },
+      {
+        "id": "line-5",
+        "category": "catering",
+        "item": "Lunches (2 per person)",
+        "quantity": 160,
+        "unitCost": 3200
+      },
+      {
+        "id": "line-6",
+        "category": "catering",
+        "item": "Congress dinner",
+        "quantity": 80,
+        "unitCost": 3500
+      },
+      {
+        "id": "line-7",
+        "category": "meeting-rooms",
+        "item": "Plenary room, day 1",
+        "quantity": 1,
+        "unitCost": 120000
+      },
+      {
+        "id": "line-8",
+        "category": "meeting-rooms",
+        "item": "Plenary room, day 2",
+        "quantity": 1,
+        "unitCost": 100000
+      },
+      {
+        "id": "line-9",
+        "category": "meeting-rooms",
+        "item": "Breakout rooms",
+        "quantity": 2,
+        "unitCost": 60000
+      },
+      {
+        "id": "line-10",
+        "category": "av",
+        "item": "Projector and screen packages",
+        "quantity": 4,
+        "unitCost": 35000
+      },
+      {
+        "id": "line-11",
+        "category": "av",
+        "item": "Sound system and microphones",
+        "quantity": 2,
+        "unitCost": 40000
+      },
+      {
+        "id": "line-12",
+        "category": "av",
+        "item": "Technician (hours)",
+        "quantity": 20,
+        "unitCost": 5000
+      },
+      {
+        "id": "line-13",
+        "category": "av",
+        "item": "Delivery and set-up",
+        "quantity": 1,
+        "unitCost": 50000
+      },
+      {
+        "id": "line-14",
+        "category": "organisation",
+        "item": "Event agency fee",
+        "quantity": 1,
+        "unitCost": 700000
+      },
+      {
+        "id": "line-15",
+        "category": "organisation",
+        "item": "Project manager",
+        "quantity": 1,
+        "unitCost": 400000
+      },
+      {
+        "id": "line-16",
+        "category": "organisation",
+        "item": "On-site event coordinator (days)",
+        "quantity": 3,
+        "unitCost": 60000
+      },
+      {
+        "id": "line-17",
+        "category": "organisation",
+        "item": "Photographer",
+        "quantity": 1,
+        "unitCost": 40000
+      },
+      {
+        "id": "line-18",
+        "category": "travel",
+        "item": "Funded travellers, tier 1",
+        "quantity": 5,
+        "unitCost": 25000
+      },
+      {
+        "id": "line-19",
+        "category": "travel",
+        "item": "Funded travellers, tier 2",
+        "quantity": 15,
+        "unitCost": 50000
+      },
+      {
+        "id": "line-20",
+        "category": "travel",
+        "item": "Funded travellers, tier 3",
+        "quantity": 10,
+        "unitCost": 90000
+      }
+    ]
   },
   "sponsorTiers": [
-    { "label": "Tier One", "baselinePrice": 1000000 },
-    { "label": "Tier Two", "baselinePrice": 500000 }
+    {
+      "label": "Tier One",
+      "baselinePrice": 1200000
+    },
+    {
+      "label": "Tier Two",
+      "baselinePrice": 600000
+    }
   ],
   "memberTiers": [
-    { "label": "Tier A", "baselineAmount": 200000 },
-    { "label": "Tier B", "baselineAmount": 100000 },
-    { "label": "Tier C", "baselineAmount": 50000 }
+    {
+      "label": "Tier A",
+      "baselineAmount": 200000
+    },
+    {
+      "label": "Tier B",
+      "baselineAmount": 100000
+    },
+    {
+      "label": "Tier C",
+      "baselineAmount": 50000
+    }
   ],
-  "grant": { "label": "Pending grant" },
-  "fixedContribution": { "label": "Partner network", "amount": 150000 },
-  "feeOptions": ["Current fees", "Fees +25%", "Fees doubled"],
+  "grant": {
+    "label": "Pending grant"
+  },
+  "fixedContribution": {
+    "label": "Partner network",
+    "amount": 150000
+  },
   "bands": [
-    { "id": "A", "fees": [40000, 50000, 80000] },
-    { "id": "B", "fees": [25000, 31250, 50000] },
-    { "id": "C", "fees": [10000, 12500, 20000] }
+    {
+      "id": "A",
+      "label": "Band A",
+      "fee": 40000
+    },
+    {
+      "id": "B",
+      "label": "Band B",
+      "fee": 25000
+    },
+    {
+      "id": "C",
+      "label": "Band C",
+      "fee": 10000
+    }
   ],
   "members": [
-    { "id": "m1", "name": "Member Alpha", "band": "A", "info": "Example note" },
-    { "id": "m2", "name": "Member Bravo", "band": "A" },
-    { "id": "m3", "name": "Member Charlie", "band": "B" },
-    { "id": "m4", "name": "Member Delta", "band": "B" },
-    { "id": "m5", "name": "Member Echo", "band": "B" },
-    { "id": "m6", "name": "Member Foxtrot", "band": "C" },
-    { "id": "m7", "name": "Member Golf", "band": "C" },
-    { "id": "m8", "name": "Member Hotel", "band": "C" }
+    {
+      "id": "m1",
+      "name": "Member Alpha",
+      "band": "A",
+      "info": "Example note"
+    },
+    {
+      "id": "m2",
+      "name": "Member Bravo",
+      "band": "A"
+    },
+    {
+      "id": "m3",
+      "name": "Member Charlie",
+      "band": "B"
+    },
+    {
+      "id": "m4",
+      "name": "Member Delta",
+      "band": "B"
+    },
+    {
+      "id": "m5",
+      "name": "Member Echo",
+      "band": "B"
+    },
+    {
+      "id": "m6",
+      "name": "Member Foxtrot",
+      "band": "C"
+    },
+    {
+      "id": "m7",
+      "name": "Member Golf",
+      "band": "C"
+    },
+    {
+      "id": "m8",
+      "name": "Member Hotel",
+      "band": "C"
+    }
   ],
   "groups": {
-    "sponsors": { "title": "Sponsors", "help": "How many sponsors sign up at each tier, and the price of each package." },
-    "grant": { "title": "Grant", "help": "A grant that is not yet confirmed." },
-    "associations": { "title": "Member contributions", "help": "How many members contribute at each tier, and the amount each one gives." },
-    "fees": { "title": "Membership fees", "help": "Fee level and the share of members expected to pay." },
-    "running": { "title": "Running income", "help": "Regular giving as a share of the baseline." },
-    "event": { "title": "Congress costs", "help": "Price uplifts, contingency and the number of funded travellers." }
+    "sponsors": {
+      "title": "Sponsors",
+      "help": "How many sponsors sign up at each tier, and the price of each package."
+    },
+    "grant": {
+      "title": "Grant",
+      "help": "A grant that is not yet confirmed."
+    },
+    "associations": {
+      "title": "Member contributions",
+      "help": "How many members contribute at each tier, and the amount each one gives."
+    },
+    "fees": {
+      "title": "Membership fees",
+      "help": "Each band has a base fee per member. Change all fees by a percentage and set the share of members expected to pay."
+    },
+    "running": {
+      "title": "Running income and costs",
+      "help": "Regular income other than membership fees, by category, and the year's running costs. Amounts are for the whole period."
+    },
+    "event": {
+      "title": "Congress costs",
+      "help": "Prices and contingency apply to every category. Each category slider scales its planned cost; edit the cost lines on the right."
+    }
   },
   "controls": {
-    "tier1Count": { "label": "Tier One sponsors", "min": 0, "max": 6, "step": 1 },
-    "tier1Price": { "label": "Tier One price", "min": 500000, "max": 3000000, "step": 50000 },
-    "tier2Count": { "label": "Tier Two sponsors", "min": 0, "max": 10, "step": 1 },
-    "tier2Price": { "label": "Tier Two price", "min": 250000, "max": 1500000, "step": 25000 },
-    "member1Count": { "label": "Tier A members", "min": 0, "max": 10, "step": 1 },
-    "member1Amount": { "label": "Tier A contribution", "min": 0, "max": 500000, "step": 5000 },
-    "member2Count": { "label": "Tier B members", "min": 0, "max": 10, "step": 1 },
-    "member2Amount": { "label": "Tier B contribution", "min": 0, "max": 300000, "step": 5000 },
-    "member3Count": { "label": "Tier C members", "min": 0, "max": 10, "step": 1 },
-    "member3Amount": { "label": "Tier C contribution", "min": 0, "max": 200000, "step": 5000 },
-    "grant": { "label": "Grant amount", "min": 0, "max": 4000000, "step": 100000 },
-    "payShare": { "label": "Members paying", "min": 50, "max": 100, "step": 5 },
-    "giving": { "label": "Regular giving", "min": 0, "max": 120, "step": 5 },
-    "generalUplift": { "label": "General price uplift", "min": 0, "max": 15, "step": 1 },
-    "venueUplift": { "label": "Extra venue uplift", "min": 0, "max": 30, "step": 1 },
-    "contingency": { "label": "Contingency", "min": 0, "max": 20, "step": 1 },
-    "travellers": { "label": "Funded travellers", "min": 10, "max": 60, "step": 1 }
+    "tier1Count": {
+      "label": "Tier One sponsors",
+      "min": 0,
+      "max": 6,
+      "step": 1
+    },
+    "tier1Price": {
+      "label": "Tier One price",
+      "min": 500000,
+      "max": 3000000,
+      "step": 50000
+    },
+    "tier2Count": {
+      "label": "Tier Two sponsors",
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "tier2Price": {
+      "label": "Tier Two price",
+      "min": 250000,
+      "max": 1500000,
+      "step": 25000
+    },
+    "member1Count": {
+      "label": "Tier A members",
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "member1Amount": {
+      "label": "Tier A contribution",
+      "min": 0,
+      "max": 500000,
+      "step": 5000
+    },
+    "member2Count": {
+      "label": "Tier B members",
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "member2Amount": {
+      "label": "Tier B contribution",
+      "min": 0,
+      "max": 300000,
+      "step": 5000
+    },
+    "member3Count": {
+      "label": "Tier C members",
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "member3Amount": {
+      "label": "Tier C contribution",
+      "min": 0,
+      "max": 200000,
+      "step": 5000
+    },
+    "grant": {
+      "label": "Grant amount",
+      "min": 0,
+      "max": 4000000,
+      "step": 100000
+    },
+    "feeChange": {
+      "label": "Change to all fees",
+      "min": -50,
+      "max": 100,
+      "step": 5
+    },
+    "payShare": {
+      "label": "Members paying",
+      "min": 50,
+      "max": 100,
+      "step": 5
+    },
+    "generalUplift": {
+      "label": "General price change",
+      "min": -5,
+      "max": 15,
+      "step": 1
+    },
+    "contingency": {
+      "label": "Contingency",
+      "min": 0,
+      "max": 20,
+      "step": 1
+    },
+    "categoryAdjust": {
+      "min": 0,
+      "max": 200,
+      "step": 5
+    }
   },
   "defaults": {
     "tier1Count": 2,
-    "tier1Price": 1000000,
+    "tier1Price": 1200000,
     "tier2Count": 3,
-    "tier2Price": 500000,
+    "tier2Price": 600000,
     "member1Count": 1,
     "member1Amount": 200000,
     "member2Count": 2,
@@ -93,23 +437,83 @@
     "member3Count": 2,
     "member3Amount": 50000,
     "grant": 0,
+    "feeChange": 0,
     "payShare": 100,
-    "giving": 75,
     "generalUplift": 3,
-    "venueUplift": 10,
     "contingency": 10,
-    "travellers": 25,
-    "feeOption": 0
+    "categoryAdjust": {}
   },
   "presets": [
-    { "id": "base", "name": "Base case", "values": {} },
-    { "id": "downside", "name": "Downside", "values": { "tier1Count": 1, "tier2Count": 2, "payShare": 80, "giving": 50 } },
-    { "id": "grant", "name": "Grant awarded", "values": { "grant": 2000000 } },
-    { "id": "tiers", "name": "Higher tier prices", "values": { "tier1Price": 1500000, "tier2Price": 750000 } },
-    { "id": "members", "name": "More members contribute", "values": { "member1Count": 2, "member2Count": 4, "member3Count": 5 } },
-    { "id": "fee-1", "name": "Fees +25%", "values": { "feeOption": 1 } },
-    { "id": "combined", "name": "Combined", "values": { "grant": 1000000, "tier1Price": 1250000, "member2Count": 3, "feeOption": 1, "payShare": 90 } },
-    { "id": "half-giving", "name": "Half giving", "values": { "giving": 50 } }
+    {
+      "id": "base",
+      "name": "Base case",
+      "values": {}
+    },
+    {
+      "id": "downside",
+      "name": "Downside",
+      "values": {
+        "tier1Count": 1,
+        "tier2Count": 2,
+        "payShare": 80,
+        "generalUplift": 6
+      }
+    },
+    {
+      "id": "grant",
+      "name": "Grant awarded",
+      "values": {
+        "grant": 2000000
+      }
+    },
+    {
+      "id": "tiers",
+      "name": "Higher tier prices",
+      "values": {
+        "tier1Price": 1500000,
+        "tier2Price": 750000
+      }
+    },
+    {
+      "id": "members",
+      "name": "More members contribute",
+      "values": {
+        "member1Count": 2,
+        "member2Count": 4,
+        "member3Count": 5
+      }
+    },
+    {
+      "id": "fees-25",
+      "name": "Fees +25%",
+      "values": {
+        "feeChange": 25
+      }
+    },
+    {
+      "id": "leaner",
+      "name": "Leaner event",
+      "values": {
+        "categoryAdjust": {
+          "travel": 80,
+          "av": 75
+        }
+      }
+    },
+    {
+      "id": "combined",
+      "name": "Combined",
+      "values": {
+        "grant": 1000000,
+        "tier1Price": 1250000,
+        "member2Count": 3,
+        "feeChange": 25,
+        "payShare": 90,
+        "categoryAdjust": {
+          "travel": 90
+        }
+      }
+    }
   ],
   "startPreset": "base",
   "scenarios": [
@@ -117,9 +521,9 @@
       "name": "Example pinned scenario",
       "values": {
         "tier1Count": 3,
-        "tier1Price": 1000000,
+        "tier1Price": 1200000,
         "tier2Count": 2,
-        "tier2Price": 500000,
+        "tier2Price": 600000,
         "member1Count": 1,
         "member1Amount": 250000,
         "member2Count": 3,
@@ -127,19 +531,21 @@
         "member3Count": 1,
         "member3Amount": 50000,
         "grant": 500000,
+        "feeChange": 50,
         "payShare": 95,
-        "giving": 80,
         "generalUplift": 4,
-        "venueUplift": 12,
         "contingency": 8,
-        "travellers": 30,
-        "feeOption": 2
+        "categoryAdjust": {
+          "accommodation": 90,
+          "travel": 110
+        }
       }
     }
   ],
   "notes": [
     "All figures are synthetic example data.",
     "Amounts are integers in minor units (cents for EUR) and are shown in major units.",
-    "Each derived amount is rounded half away from zero to a whole minor unit at the points listed in the README."
+    "Each derived amount is rounded half away from zero to a whole minor unit at the points listed in the README.",
+    "Cost lines, income lines and band fees are shared by every scenario; the sliders and presets change only the scenario settings."
   ]
 }

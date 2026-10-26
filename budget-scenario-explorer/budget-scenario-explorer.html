@@ -15,21 +15,29 @@ header p{margin:4px 0 0;color:var(--muted)}
 .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
 button,select{font:inherit;padding:4px 10px;border:1px solid #b9c3cc;border-radius:6px;background:#fff;color:var(--ink);cursor:pointer}
 button:hover{border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
 button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+button.x{padding:2px 8px}
+input[type=text],input[type=number]{font:inherit;padding:3px 6px;border:1px solid #b9c3cc;border-radius:6px;background:#fff;color:var(--ink);min-width:0}
+input[type=number]{width:8.5em;text-align:right}
+input[aria-invalid=true]{border-color:var(--red);background:#fdeeee}
 #status{color:var(--muted)}
 #status[data-kind=error]{color:var(--red);font-weight:600}
-#empty-state{max-width:640px;margin:48px auto;padding:24px;background:var(--card);border:1px solid var(--line);border-radius:10px}
 .presets{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 24px}
 .presets span{color:var(--muted)}
-main{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;padding:0 24px 16px}
+main{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;padding:0 24px 16px}
 @media (max-width:900px){main{grid-template-columns:1fr}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
 .card h3{margin:0 0 4px;font-size:16px}
 .help{margin:0 0 8px;color:var(--muted);font-size:12px}
 .ctl{margin:8px 0}
 .ctl label{display:flex;justify-content:space-between;gap:8px}
-.ctl input[type=range],.ctl select{width:100%}
+.ctl input[type=range]{width:100%}
 .ctl em{color:var(--muted);font-style:normal;margin-left:4px}
+.row{display:flex;gap:6px;align-items:center;margin:4px 0}
+.row input[type=text]{flex:1}
+.row label{flex:1}
+.sum{margin:8px 0 0;font-size:12px;color:var(--muted)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:10px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .kpi .l{font-size:12px;color:var(--muted)}
@@ -45,10 +53,20 @@ table{border-collapse:collapse;width:100%;background:var(--card)}
 th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 tr.cur{background:#eef5fb}
+tr.total td{font-weight:700}
+table.mini th,table.mini td{padding:4px 4px}
+table.mini input[type=number]{width:7em}
+table.editor td{vertical-align:middle;padding:4px 6px}
+table.editor input[type=text]{width:100%}
+table.editor input.qty{width:5.5em}
+table.editor tr.cat td{background:#f1f4f7;font-weight:600}
+table.editor td.act{white-space:nowrap}
+details{margin:8px 0}
+summary{cursor:pointer;color:var(--accent);font-weight:600}
 footer{padding:8px 24px 24px;font-size:12px;color:var(--muted)}
 .pinbar{display:flex;gap:6px;margin-bottom:6px}
 .pinbar input{font:inherit;padding:4px 8px;border:1px solid #b9c3cc;border-radius:6px;min-width:220px}
-@media print{.presets,.toolbar,button,.pinbar{display:none}main{grid-template-columns:1fr}}
+@media print{.presets,.toolbar,button,.pinbar,details{display:none}main{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -70,6 +88,10 @@ footer{padding:8px 24px 24px;font-size:12px;color:var(--muted)}
     <section>
       <div class="kpis" id="kpis"></div>
       <div class="includes" id="includes"></div>
+      <h2 id="costs-heading"></h2>
+      <div id="cost-summary"></div>
+      <p class="note">Planned is quantity × unit cost, summed over each category's cost lines. This scenario applies each category's share of plan and the general price uplift, then adds contingency.</p>
+      <details id="cost-details"><summary>Edit cost lines</summary><div id="cost-editor"></div></details>
       <h2 id="stack-heading"></h2>
       <div id="stack"></div>
       <div class="legend" id="stack-legend"></div>
@@ -81,7 +103,7 @@ footer{padding:8px 24px 24px;font-size:12px;color:var(--muted)}
       <div id="cash"></div>
       <p class="note" id="cash-note"></p>
       <h2>Compare scenarios</h2>
-      <p class="note">Presets start from the defaults in the file. Pin the current settings to keep them as a row; pinned scenarios are written into the JSON when you save.</p>
+      <p class="note">Presets start from the defaults in the file. Pin the current settings to keep them as a row; pinned scenarios are written into the JSON when you save. Budget lines (costs, income, fees) are shared by every scenario.</p>
       <div class="pinbar"><input id="pin-name" type="text" placeholder="Name for this scenario" aria-label="Name for this scenario"><button id="pin" type="button">Pin current settings</button></div>
       <div id="compare"></div>
     </section>
@@ -92,12 +114,14 @@ footer{padding:8px 24px 24px;font-size:12px;color:var(--muted)}
 <script id="core">
 "use strict";
 const TOOL = "ngo-tools-budget-scenario-explorer";
-const VERSION = 1;
+const VERSION = 2;
 const MEMBER_TIERS = 3;
 const MEMBER_KEYS = Array.from({ length: MEMBER_TIERS }, (_, i) => [`member${i + 1}Count`, `member${i + 1}Amount`]).flat();
-const CONTROL_KEYS = ["tier1Count", "tier1Price", "tier2Count", "tier2Price", ...MEMBER_KEYS, "grant", "payShare", "giving",
-  "generalUplift", "venueUplift", "contingency", "travellers"];
-const VALUE_KEYS = [...CONTROL_KEYS, "feeOption"];
+const CONTROL_KEYS = ["tier1Count", "tier1Price", "tier2Count", "tier2Price", ...MEMBER_KEYS, "grant", "feeChange", "payShare",
+  "generalUplift", "contingency"];
+// Percentage changes that may go below zero, down to −100%.
+const SIGNED_KEYS = ["feeChange", "generalUplift"];
+const VALUE_KEYS = [...CONTROL_KEYS, "categoryAdjust"];
 const GROUP_KEYS = ["sponsors", "grant", "associations", "fees", "running", "event"];
 
 class DataError extends Error {}
@@ -145,8 +169,12 @@ function checkValues(doc, values, where, complete) {
   object(values, where);
   for (const key of VALUE_KEYS) if (complete && !has(values, key)) fail(where, `is missing "${key}"`);
   for (const key of CONTROL_KEYS) if (has(values, key)) checkRange(values[key], doc.controls[key], `${where}.${key}`);
-  if (has(values, "feeOption") && (!Number.isSafeInteger(values.feeOption) || values.feeOption < 0 || values.feeOption >= doc.feeOptions.length)) {
-    fail(`${where}.feeOption`, `must be a fee option number from 0 to ${doc.feeOptions.length - 1}`);
+  if (has(values, "categoryAdjust")) {
+    const ids = new Set(doc.eventCosts.categories.map(category => category.id));
+    for (const [id, value] of Object.entries(object(values.categoryAdjust, `${where}.categoryAdjust`))) {
+      if (!ids.has(id)) fail(`${where}.categoryAdjust.${id}`, "names an unknown cost category");
+      checkRange(value, doc.controls.categoryAdjust, `${where}.categoryAdjust.${id}`);
+    }
   }
 }
 
@@ -159,6 +187,7 @@ function validate(doc) {
   }
   whole(doc.version, "version", 1);
   if (doc.version > VERSION) fail("", `This file uses format version ${doc.version}, made by a newer version; this tool reads version ${VERSION}.`);
+  if (doc.version < VERSION) fail("", `This file uses format version ${doc.version}; this tool reads version ${VERSION}. The README describes the current format.`);
   text(doc.title, "title");
   text(doc.subtitle, "subtitle", true);
   text(doc.periodLabel, "periodLabel");
@@ -176,14 +205,27 @@ function validate(doc) {
   text(cash.endLabel, "cash.endLabel");
 
   const running = object(doc.running, "running");
-  amount(running.otherIncome, "running.otherIncome");
+  const income = list(running.income, "running.income", false);
+  unique(income, "running.income");
+  income.forEach((line, index) => {
+    text(line.label, `running.income[${index}].label`);
+    amount(line.amount, `running.income[${index}].amount`, 0);
+  });
   amount(running.costs, "running.costs", 0);
-  amount(running.givingBaseline, "running.givingBaseline", 0);
-  text(running.givingLabel, "running.givingLabel");
 
   const event = object(doc.eventCosts, "eventCosts");
-  for (const key of ["venue", "other", "travel"]) amount(event[key], `eventCosts.${key}`, 0);
-  whole(event.travellers, "eventCosts.travellers", 1);
+  const categories = list(event.categories, "eventCosts.categories", false), categoryIds = unique(categories, "eventCosts.categories");
+  categories.forEach((category, index) => text(category.label, `eventCosts.categories[${index}].label`));
+  const lines = list(event.lines, "eventCosts.lines", false);
+  unique(lines, "eventCosts.lines");
+  lines.forEach((line, index) => {
+    const where = `eventCosts.lines[${index}]`;
+    if (!categoryIds.has(line.category)) fail(`${where}.category`, `names unknown category "${line.category}"`);
+    text(line.item, `${where}.item`);
+    whole(line.quantity, `${where}.quantity`, 0);
+    amount(line.unitCost, `${where}.unitCost`, 0);
+    if (!Number.isSafeInteger(line.quantity * line.unitCost)) fail(where, "quantity × unit cost is too large");
+  });
 
   const tiers = list(doc.sponsorTiers, "sponsorTiers");
   if (tiers.length !== 2) fail("sponsorTiers", "must list exactly two tiers");
@@ -204,12 +246,10 @@ function validate(doc) {
   text(fixed.label, "fixedContribution.label");
   amount(fixed.amount, "fixedContribution.amount", 0);
 
-  list(doc.feeOptions, "feeOptions").forEach((label, index) => text(label, `feeOptions[${index}]`));
   const bands = list(doc.bands, "bands"), bandIds = unique(bands, "bands");
   bands.forEach((band, index) => {
-    const fees = list(band.fees, `bands[${index}].fees`);
-    if (fees.length !== doc.feeOptions.length) fail(`bands[${index}].fees`, `must have one fee per fee option (${doc.feeOptions.length})`);
-    fees.forEach((fee, option) => amount(fee, `bands[${index}].fees[${option}]`, 0));
+    text(band.label, `bands[${index}].label`);
+    amount(band.fee, `bands[${index}].fee`, 0);
   });
   const members = list(doc.members, "members", false);
   unique(members, "members");
@@ -230,10 +270,15 @@ function validate(doc) {
   for (const key of CONTROL_KEYS) {
     const control = object(controls[key], `controls.${key}`);
     text(control.label, `controls.${key}.label`);
-    whole(control.min, `controls.${key}.min`, 0);
+    whole(control.min, `controls.${key}.min`, SIGNED_KEYS.includes(key) ? -100 : 0);
     whole(control.max, `controls.${key}.max`, control.min);
     whole(control.step, `controls.${key}.step`, 1);
   }
+  const adjust = object(controls.categoryAdjust, "controls.categoryAdjust");
+  whole(adjust.min, "controls.categoryAdjust.min", 0);
+  whole(adjust.max, "controls.categoryAdjust.max", adjust.min);
+  whole(adjust.step, "controls.categoryAdjust.step", 1);
+  if (100 < adjust.min || 100 > adjust.max || (100 - adjust.min) % adjust.step !== 0) fail("controls.categoryAdjust", "must allow 100 (the planned cost) as a value");
 
   checkValues(doc, doc.defaults, "defaults", true);
   const presets = list(doc.presets, "presets", false), presetIds = unique(presets, "presets");
@@ -276,28 +321,42 @@ function mulDiv(a, num, den) {
 }
 const add = (...values) => values.reduce((total, value) => safe(total + safe(value)), 0);
 
-const presetValues = (doc, preset) => Object.assign(clone(doc.defaults), clone(preset.values));
+const adjustment = (values, id) => values.categoryAdjust[id] ?? 100;
+function presetValues(doc, preset) {
+  const values = Object.assign(clone(doc.defaults), clone(preset.values));
+  values.categoryAdjust = Object.assign(clone(doc.defaults.categoryAdjust), clone(preset.values.categoryAdjust ?? {}));
+  return values;
+}
 function startValues(doc) {
   const preset = doc.startPreset === undefined ? undefined : doc.presets.find(item => item.id === doc.startPreset);
   return preset ? presetValues(doc, preset) : clone(doc.defaults);
 }
 
+const lineTotal = line => mulDiv(line.quantity, line.unitCost, 1);
+function costs(doc, s) {
+  const general = 100 + s.generalUplift;
+  const categories = doc.eventCosts.categories.map(category => {
+    const planned = add(...doc.eventCosts.lines.filter(line => line.category === category.id).map(lineTotal));
+    const percent = adjustment(s, category.id);
+    return { id: category.id, label: category.label, planned, percent, amount: mulDiv(planned, percent * general, 10000) };
+  });
+  const subtotal = add(...categories.map(category => category.amount)), contingency = mulDiv(subtotal, s.contingency, 100);
+  return { categories, planned: add(...categories.map(category => category.planned)), subtotal, contingency, cost: add(subtotal, contingency) };
+}
+
 function model(doc, s) {
-  const event = doc.eventCosts, general = 100 + s.generalUplift, venue = 100 + s.venueUplift, contingency = 100 + s.contingency;
-  const costLines = {
-    venue: mulDiv(event.venue, general * venue * contingency, 1000000),
-    other: mulDiv(event.other, general * contingency, 10000),
-    travel: mulDiv(event.travel, general * s.travellers * contingency, 10000 * event.travellers),
-  };
-  const cost = add(costLines.venue, costLines.other, costLines.travel);
+  const eventCosts = costs(doc, s), cost = eventCosts.cost;
   const tier1 = mulDiv(s.tier1Count, s.tier1Price, 1), tier2 = mulDiv(s.tier2Count, s.tier2Price, 1);
   const memberLines = doc.memberTiers.map((_, i) => mulDiv(s[`member${i + 1}Count`], s[`member${i + 1}Amount`], 1));
   const members = add(doc.fixedContribution.amount, ...memberLines);
-  const bandBase = doc.bands.map(band => mulDiv(band.fees[s.feeOption], doc.members.filter(member => member.band === band.id).length, 1));
-  const feeBase = add(...bandBase);
-  const fees = add(...bandBase.map(base => mulDiv(base, s.payShare, 100)));
-  const giving = mulDiv(doc.running.givingBaseline, s.giving, 100);
-  const runningIncome = add(fees, giving, doc.running.otherIncome);
+  const bandFees = doc.bands.map(band => {
+    const fee = mulDiv(band.fee, 100 + s.feeChange, 100), count = doc.members.filter(member => member.band === band.id).length;
+    const due = mulDiv(fee, count, 1);
+    return { id: band.id, label: band.label, count, fee, due, paid: mulDiv(due, s.payShare, 100) };
+  });
+  const feeBase = add(...bandFees.map(band => band.due)), fees = add(...bandFees.map(band => band.paid));
+  const otherIncome = add(...doc.running.income.map(line => line.amount));
+  const runningIncome = add(fees, otherIncome);
   const runningResult = add(runningIncome, -doc.running.costs);
   const eventIncome = add(tier1, tier2, members, s.grant);
   const eventResult = add(eventIncome, -cost);
@@ -315,7 +374,7 @@ function model(doc, s) {
   // Tenths of a percent; null (not applicable) when there is no cost or no funder.
   const topShare = cost > 0 && top.amount > 0 ? mulDiv(top.amount, 1000, cost) : null;
   return {
-    costLines, cost, tier1, tier2, memberLines, members, grant: s.grant, feeBase, fees, giving, runningIncome, runningResult,
+    costs: eventCosts, cost, tier1, tier2, memberLines, members, grant: s.grant, bandFees, feeBase, fees, otherIncome, runningIncome, runningResult,
     eventIncome, eventResult, result, cash, top: { label: top.label, amount: top.amount }, topShare,
     majority: topShare !== null && top.amount * 2 > cost,
   };
@@ -329,6 +388,7 @@ function money(doc, minor) {
   return `${minor < 0 ? MINUS : ""}${units}${places ? `.${digits.slice(-places)}` : ""}`;
 }
 const signed = (doc, minor) => `${minor > 0 ? "+" : ""}${money(doc, minor)}`;
+const percentChange = value => `${value < 0 ? MINUS : "+"}${Math.abs(value)}%`;
 function thousands(doc, minor) {
   const tenths = mulDiv(minor, 1, 100 * 10 ** (doc.minorDigits ?? 2)), magnitude = Math.abs(tenths);
   return `${tenths < 0 ? MINUS : ""}${Math.floor(magnitude / 10)}.${magnitude % 10}k`;
@@ -348,20 +408,21 @@ function describe(doc, s) {
     return `${count} ${tier.label} × ${money(doc, each)} (${change(each, tier.baselineAmount)})`;
   }).join(", ")}, plus ${doc.fixedContribution.label} = ${money(doc, r.members)}`);
   lines.push(s.grant > 0 ? `${doc.grant.label} ${money(doc, s.grant)}` : `No ${doc.grant.label}`);
-  lines.push(`${doc.feeOptions[s.feeOption]}${s.payShare < 100 ? `, ${s.payShare}% of members pay` : `, all ${doc.members.length} members pay`} = ${money(doc, r.fees)}`);
-  if (s.giving !== doc.defaults.giving) lines.push(`${doc.running.givingLabel} at ${s.giving}% of baseline`);
-  if (["generalUplift", "venueUplift", "contingency", "travellers"].some(key => s[key] !== doc.defaults[key])) {
-    lines.push(`${doc.eventLabel} costs: +${s.generalUplift}% general, +${s.venueUplift}% venue, ${s.contingency}% contingency, ${s.travellers} travellers = ${money(doc, r.cost)}`);
+  lines.push(`${s.feeChange === 0 ? "Base fees" : `Fees ${percentChange(s.feeChange)}`}${s.payShare < 100 ? `, ${s.payShare}% of members pay` : `, all ${doc.members.length} members pay`} = ${money(doc, r.fees)}`);
+  const adjusted = r.costs.categories.filter(category => category.percent !== 100).map(category => `${category.label} ${category.percent}%`);
+  if (adjusted.length || s.generalUplift !== doc.defaults.generalUplift || s.contingency !== doc.defaults.contingency) {
+    lines.push(`${doc.eventLabel} costs: ${percentChange(s.generalUplift)} prices, ${adjusted.length ? `${adjusted.join(", ")} of plan, ` : ""}${s.contingency}% contingency = ${money(doc, r.cost)}`);
   }
   return lines;
 }
 
-function canonical(values) {
+function canonical(doc, values) {
   const copy = {};
-  for (const key of VALUE_KEYS) copy[key] = values[key];
+  for (const key of CONTROL_KEYS) copy[key] = values[key];
+  copy.categoryAdjust = doc.eventCosts.categories.map(category => adjustment(values, category.id));
   return JSON.stringify(copy);
 }
-const sameValues = (a, b) => canonical(a) === canonical(b);
+const sameValues = (doc, a, b) => canonical(doc, a) === canonical(doc, b);
 
 function pin(doc, name, values) {
   text(name, "Scenario name");
@@ -376,9 +437,27 @@ function unpin(doc, index) {
   return doc;
 }
 
+function nextId(items, prefix) {
+  let n = items.length + 1;
+  while (items.some(item => item.id === `${prefix}-${n}`)) n += 1;
+  return `${prefix}-${n}`;
+}
+// Removes an empty cost category and every scenario setting that refers to it.
+function removeCategory(doc, id) {
+  if (doc.eventCosts.lines.some(line => line.category === id)) throw new RangeError("Delete or move the category's cost lines first.");
+  const index = doc.eventCosts.categories.findIndex(category => category.id === id);
+  if (index < 0) throw new RangeError(`No cost category "${id}".`);
+  doc.eventCosts.categories.splice(index, 1);
+  for (const values of [doc.defaults, ...doc.presets.map(preset => preset.values), ...(doc.scenarios ?? []).map(scenario => scenario.values)]) {
+    if (isObject(values.categoryAdjust)) delete values.categoryAdjust[id];
+  }
+  return doc;
+}
+
 globalThis.ToolCore = Object.freeze({
-  TOOL, VERSION, CONTROL_KEYS, MEMBER_KEYS, VALUE_KEYS, DataError, clone, parse, validate, serialise, mulDiv, add, model,
-  presetValues, startValues, money, signed, thousands, change, share, describe, sameValues, pin, unpin,
+  TOOL, VERSION, CONTROL_KEYS, SIGNED_KEYS, MEMBER_KEYS, VALUE_KEYS, DataError, clone, parse, validate, serialise, mulDiv, add,
+  adjustment, lineTotal, costs, model, presetValues, startValues, money, signed, percentChange, thousands, change, share, describe,
+  sameValues, pin, unpin, nextId, removeCategory,
 });
 </script>
 
@@ -389,11 +468,12 @@ globalThis.ToolCore = Object.freeze({
   const SVG_NS = "http://www.w3.org/2000/svg";
   const COLOURS = { tier1: "#6b5ba8", tier2: "#c49a2c", members: "#2f8a83", grant: "#3f78b5", running: "#5c8f3a",
     cost: "#7f8a94", up: "#1e7a46", down: "#b3261e", history: "#a9b8c8", end: "#2f5d8a" };
-  const MONEY = ["tier1Price", "tier2Price", "member1Amount", "member2Amount", "member3Amount", "grant"], PERCENT = ["payShare", "giving", "generalUplift", "venueUplift", "contingency"];
+  const MONEY = ["tier1Price", "tier2Price", "member1Amount", "member2Amount", "member3Amount", "grant"];
+  const PERCENT = ["feeChange", "payShare", "generalUplift", "contingency"];
   const $ = id => document.getElementById(id);
-  let doc = null, values = null, fileName = "budget.json", fileHandle = null, dirty = false, sliders = [];
+  let doc = null, values = null, fileName = "budget.json", fileHandle = null, dirty = false, sliders = [], live = [];
   // Synthetic starting budget so the page is usable before any file is loaded; same shape as example.json.
-  const STARTER = {"tool":"ngo-tools-budget-scenario-explorer","version":1,"title":"Starting budget","subtitle":"Made-up figures so you can start straight away. Load your own budget JSON, or Save this one and replace its figures.","periodLabel":"Year 2","eventLabel":"Congress","currency":"EUR","minorDigits":2,"cash":{"start":2500000,"history":[{"label":"Start of Year 1","amount":3000000},{"label":"End of Year 1","amount":2500000}],"endLabel":"End of Year 2"},"running":{"otherIncome":1001,"costs":300000,"givingBaseline":1000001,"givingLabel":"Regular giving"},"eventCosts":{"venue":4000000,"other":700000,"travel":2500000,"travellers":25},"sponsorTiers":[{"label":"Tier One","baselinePrice":1000000},{"label":"Tier Two","baselinePrice":500000}],"memberTiers":[{"label":"Tier A","baselineAmount":200000},{"label":"Tier B","baselineAmount":100000},{"label":"Tier C","baselineAmount":50000}],"grant":{"label":"Pending grant"},"fixedContribution":{"label":"Partner network","amount":150000},"feeOptions":["Current fees","Fees +25%","Fees doubled"],"bands":[{"id":"A","fees":[40000,50000,80000]},{"id":"B","fees":[25000,31250,50000]},{"id":"C","fees":[10000,12500,20000]}],"members":[{"id":"m1","name":"Member Alpha","band":"A","info":"Example note"},{"id":"m2","name":"Member Bravo","band":"A"},{"id":"m3","name":"Member Charlie","band":"B"},{"id":"m4","name":"Member Delta","band":"B"},{"id":"m5","name":"Member Echo","band":"B"},{"id":"m6","name":"Member Foxtrot","band":"C"},{"id":"m7","name":"Member Golf","band":"C"},{"id":"m8","name":"Member Hotel","band":"C"}],"groups":{"sponsors":{"title":"Sponsors","help":"How many sponsors sign up at each tier, and the price of each package."},"grant":{"title":"Grant","help":"A grant that is not yet confirmed."},"associations":{"title":"Member contributions","help":"How many members contribute at each tier, and the amount each one gives."},"fees":{"title":"Membership fees","help":"Fee level and the share of members expected to pay."},"running":{"title":"Running income","help":"Regular giving as a share of the baseline."},"event":{"title":"Congress costs","help":"Price uplifts, contingency and the number of funded travellers."}},"controls":{"tier1Count":{"label":"Tier One sponsors","min":0,"max":6,"step":1},"tier1Price":{"label":"Tier One price","min":500000,"max":3000000,"step":50000},"tier2Count":{"label":"Tier Two sponsors","min":0,"max":10,"step":1},"tier2Price":{"label":"Tier Two price","min":250000,"max":1500000,"step":25000},"member1Count":{"label":"Tier A members","min":0,"max":10,"step":1},"member1Amount":{"label":"Tier A contribution","min":0,"max":500000,"step":5000},"member2Count":{"label":"Tier B members","min":0,"max":10,"step":1},"member2Amount":{"label":"Tier B contribution","min":0,"max":300000,"step":5000},"member3Count":{"label":"Tier C members","min":0,"max":10,"step":1},"member3Amount":{"label":"Tier C contribution","min":0,"max":200000,"step":5000},"grant":{"label":"Grant amount","min":0,"max":4000000,"step":100000},"payShare":{"label":"Members paying","min":50,"max":100,"step":5},"giving":{"label":"Regular giving","min":0,"max":120,"step":5},"generalUplift":{"label":"General price uplift","min":0,"max":15,"step":1},"venueUplift":{"label":"Extra venue uplift","min":0,"max":30,"step":1},"contingency":{"label":"Contingency","min":0,"max":20,"step":1},"travellers":{"label":"Funded travellers","min":10,"max":60,"step":1}},"defaults":{"tier1Count":2,"tier1Price":1000000,"tier2Count":3,"tier2Price":500000,"member1Count":1,"member1Amount":200000,"member2Count":2,"member2Amount":100000,"member3Count":2,"member3Amount":50000,"grant":0,"payShare":100,"giving":75,"generalUplift":3,"venueUplift":10,"contingency":10,"travellers":25,"feeOption":0},"presets":[{"id":"base","name":"Base case","values":{}},{"id":"downside","name":"Downside","values":{"tier1Count":1,"tier2Count":2,"payShare":80,"giving":50}},{"id":"grant","name":"Grant awarded","values":{"grant":2000000}},{"id":"tiers","name":"Higher tier prices","values":{"tier1Price":1500000,"tier2Price":750000}},{"id":"members","name":"More members contribute","values":{"member1Count":2,"member2Count":4,"member3Count":5}},{"id":"fee-1","name":"Fees +25%","values":{"feeOption":1}},{"id":"combined","name":"Combined","values":{"grant":1000000,"tier1Price":1250000,"member2Count":3,"feeOption":1,"payShare":90}},{"id":"half-giving","name":"Half giving","values":{"giving":50}}],"startPreset":"base","scenarios":[{"name":"Example pinned scenario","values":{"tier1Count":3,"tier1Price":1000000,"tier2Count":2,"tier2Price":500000,"member1Count":1,"member1Amount":250000,"member2Count":3,"member2Amount":100000,"member3Count":1,"member3Amount":50000,"grant":500000,"payShare":95,"giving":80,"generalUplift":4,"venueUplift":12,"contingency":8,"travellers":30,"feeOption":2}}],"notes":["All figures are synthetic example data.","Amounts are integers in minor units (cents for EUR) and are shown in major units.","Each derived amount is rounded half away from zero to a whole minor unit at the points listed in the README."]};
+  const STARTER = {"tool":"ngo-tools-budget-scenario-explorer","version":2,"title":"Starting budget","subtitle":"Made-up figures to show how the tool works. Edit them, or load your own budget JSON.","periodLabel":"Year 2","eventLabel":"Congress","currency":"EUR","minorDigits":2,"cash":{"start":2500000,"history":[{"label":"Start of Year 1","amount":3000000},{"label":"End of Year 1","amount":2500000}],"endLabel":"End of Year 2"},"running":{"income":[{"id":"donations","label":"Individual donations","amount":900000},{"id":"online","label":"Online fundraising","amount":300000},{"id":"other","label":"Other income","amount":50000}],"costs":1200000},"eventCosts":{"categories":[{"id":"accommodation","label":"Accommodation"},{"id":"catering","label":"Catering"},{"id":"meeting-rooms","label":"Meeting rooms"},{"id":"av","label":"Audiovisual"},{"id":"organisation","label":"Organisation and staff"},{"id":"travel","label":"Funded travel"}],"lines":[{"id":"line-1","category":"accommodation","item":"Double rooms, night 1","quantity":40,"unitCost":15000},{"id":"line-2","category":"accommodation","item":"Double rooms, night 2","quantity":40,"unitCost":15000},{"id":"line-3","category":"catering","item":"Welcome dinner","quantity":80,"unitCost":4000},{"id":"line-4","category":"catering","item":"Coffee breaks (3 per person)","quantity":240,"unitCost":1100},{"id":"line-5","category":"catering","item":"Lunches (2 per person)","quantity":160,"unitCost":3200},{"id":"line-6","category":"catering","item":"Congress dinner","quantity":80,"unitCost":3500},{"id":"line-7","category":"meeting-rooms","item":"Plenary room, day 1","quantity":1,"unitCost":120000},{"id":"line-8","category":"meeting-rooms","item":"Plenary room, day 2","quantity":1,"unitCost":100000},{"id":"line-9","category":"meeting-rooms","item":"Breakout rooms","quantity":2,"unitCost":60000},{"id":"line-10","category":"av","item":"Projector and screen packages","quantity":4,"unitCost":35000},{"id":"line-11","category":"av","item":"Sound system and microphones","quantity":2,"unitCost":40000},{"id":"line-12","category":"av","item":"Technician (hours)","quantity":20,"unitCost":5000},{"id":"line-13","category":"av","item":"Delivery and set-up","quantity":1,"unitCost":50000},{"id":"line-14","category":"organisation","item":"Event agency fee","quantity":1,"unitCost":700000},{"id":"line-15","category":"organisation","item":"Project manager","quantity":1,"unitCost":400000},{"id":"line-16","category":"organisation","item":"On-site event coordinator (days)","quantity":3,"unitCost":60000},{"id":"line-17","category":"organisation","item":"Photographer","quantity":1,"unitCost":40000},{"id":"line-18","category":"travel","item":"Funded travellers, tier 1","quantity":5,"unitCost":25000},{"id":"line-19","category":"travel","item":"Funded travellers, tier 2","quantity":15,"unitCost":50000},{"id":"line-20","category":"travel","item":"Funded travellers, tier 3","quantity":10,"unitCost":90000}]},"sponsorTiers":[{"label":"Tier One","baselinePrice":1200000},{"label":"Tier Two","baselinePrice":600000}],"memberTiers":[{"label":"Tier A","baselineAmount":200000},{"label":"Tier B","baselineAmount":100000},{"label":"Tier C","baselineAmount":50000}],"grant":{"label":"Pending grant"},"fixedContribution":{"label":"Partner network","amount":150000},"bands":[{"id":"A","label":"Band A","fee":40000},{"id":"B","label":"Band B","fee":25000},{"id":"C","label":"Band C","fee":10000}],"members":[{"id":"m1","name":"Member Alpha","band":"A","info":"Example note"},{"id":"m2","name":"Member Bravo","band":"A"},{"id":"m3","name":"Member Charlie","band":"B"},{"id":"m4","name":"Member Delta","band":"B"},{"id":"m5","name":"Member Echo","band":"B"},{"id":"m6","name":"Member Foxtrot","band":"C"},{"id":"m7","name":"Member Golf","band":"C"},{"id":"m8","name":"Member Hotel","band":"C"}],"groups":{"sponsors":{"title":"Sponsors","help":"How many sponsors sign up at each tier, and the price of each package."},"grant":{"title":"Grant","help":"A grant that is not yet confirmed."},"associations":{"title":"Member contributions","help":"How many members contribute at each tier, and the amount each one gives."},"fees":{"title":"Membership fees","help":"Each band has a base fee per member. Change all fees by a percentage and set the share of members expected to pay."},"running":{"title":"Running income and costs","help":"Regular income other than membership fees, by category, and the year's running costs. Amounts are for the whole period."},"event":{"title":"Congress costs","help":"Prices and contingency apply to every category. Each category slider scales its planned cost; edit the cost lines on the right."}},"controls":{"tier1Count":{"label":"Tier One sponsors","min":0,"max":6,"step":1},"tier1Price":{"label":"Tier One price","min":500000,"max":3000000,"step":50000},"tier2Count":{"label":"Tier Two sponsors","min":0,"max":10,"step":1},"tier2Price":{"label":"Tier Two price","min":250000,"max":1500000,"step":25000},"member1Count":{"label":"Tier A members","min":0,"max":10,"step":1},"member1Amount":{"label":"Tier A contribution","min":0,"max":500000,"step":5000},"member2Count":{"label":"Tier B members","min":0,"max":10,"step":1},"member2Amount":{"label":"Tier B contribution","min":0,"max":300000,"step":5000},"member3Count":{"label":"Tier C members","min":0,"max":10,"step":1},"member3Amount":{"label":"Tier C contribution","min":0,"max":200000,"step":5000},"grant":{"label":"Grant amount","min":0,"max":4000000,"step":100000},"feeChange":{"label":"Change to all fees","min":-50,"max":100,"step":5},"payShare":{"label":"Members paying","min":50,"max":100,"step":5},"generalUplift":{"label":"General price change","min":-5,"max":15,"step":1},"contingency":{"label":"Contingency","min":0,"max":20,"step":1},"categoryAdjust":{"min":0,"max":200,"step":5}},"defaults":{"tier1Count":2,"tier1Price":1200000,"tier2Count":3,"tier2Price":600000,"member1Count":1,"member1Amount":200000,"member2Count":2,"member2Amount":100000,"member3Count":2,"member3Amount":50000,"grant":0,"feeChange":0,"payShare":100,"generalUplift":3,"contingency":10,"categoryAdjust":{}},"presets":[{"id":"base","name":"Base case","values":{}},{"id":"downside","name":"Downside","values":{"tier1Count":1,"tier2Count":2,"payShare":80,"generalUplift":6}},{"id":"grant","name":"Grant awarded","values":{"grant":2000000}},{"id":"tiers","name":"Higher tier prices","values":{"tier1Price":1500000,"tier2Price":750000}},{"id":"members","name":"More members contribute","values":{"member1Count":2,"member2Count":4,"member3Count":5}},{"id":"fees-25","name":"Fees +25%","values":{"feeChange":25}},{"id":"leaner","name":"Leaner event","values":{"categoryAdjust":{"travel":80,"av":75}}},{"id":"combined","name":"Combined","values":{"grant":1000000,"tier1Price":1250000,"member2Count":3,"feeChange":25,"payShare":90,"categoryAdjust":{"travel":90}}}],"startPreset":"base","notes":["All figures are synthetic example data.","Amounts are integers in minor units (cents for EUR) and are shown in major units.","Each derived amount is rounded half away from zero to a whole minor unit at the points listed in the README.","Cost lines, income lines and band fees are shared by every scenario; the sliders and presets change only the scenario settings."]};
 
   function set(node, attributes) {
     for (const [key, value] of Object.entries(attributes)) {
@@ -416,11 +496,16 @@ globalThis.ToolCore = Object.freeze({
     return node;
   }
   const money = minor => Core.money(doc, minor), signed = minor => Core.signed(doc, minor), k = minor => Core.thousands(doc, minor);
-  const major = minor => minor / 10 ** (doc.minorDigits ?? 2);
+  const digits = () => doc.minorDigits ?? 2, scale = () => 10 ** digits();
+  const major = minor => minor / scale();
 
   function status(message, error = false) {
     $("status").textContent = message;
     if (error) $("status").setAttribute("data-kind", "error"); else $("status").removeAttribute("data-kind");
+  }
+  function changed() {
+    dirty = true;
+    status("Unsaved changes. Choose Save JSON… to keep them in the file.");
   }
 
   async function openFile() {
@@ -442,6 +527,7 @@ globalThis.ToolCore = Object.freeze({
 
   async function save() {
     if (!doc) return;
+    try { Core.validate(Core.clone(doc)); } catch (error) { status(`Not saved: ${error.message}`, true); return; }
     const content = Core.serialise(doc);
     if (typeof window.showSaveFilePicker === "function") {
       try {
@@ -467,14 +553,68 @@ globalThis.ToolCore = Object.freeze({
   function build() {
     $("app").hidden = false; $("save").disabled = false;
     document.title = doc.title; $("title").textContent = doc.title; $("subtitle").textContent = doc.subtitle ?? "";
+    $("costs-heading").textContent = `${doc.eventLabel} budget`;
     $("stack-heading").textContent = `Who pays for the ${doc.eventLabel}?`;
     $("waterfall-heading").textContent = `How the ${doc.periodLabel} result is built`;
     $("presets").replaceChildren(el("span", { text: "Start from a scenario:" }),
       ...doc.presets.map(preset => el("button", { type: "button", "data-preset": preset.id, text: preset.name,
         onclick: () => { values = Core.presetValues(doc, preset); render(); } })));
     buildControls();
+    buildEditor();
     $("notes").replaceChildren(...(doc.notes ?? []).map(note => el("li", { text: note })));
     render();
+  }
+
+  // Rebuilds the parts that list budget lines after a line or category is added or removed.
+  function restructure(focusSelector) {
+    changed();
+    buildControls();
+    buildEditor();
+    render();
+    if (focusSelector) {
+      const target = document.querySelector(focusSelector);
+      if (target) { target.focus(); if (target.select) target.select(); }
+    }
+  }
+
+  // Applies an edit to the budget lines. An edit that would overflow is undone and the input is marked invalid.
+  function apply(input, read, write, next) {
+    const previous = read();
+    write(next);
+    try { render(); } catch (error) {
+      write(previous); render();
+      input.setAttribute("aria-invalid", "true");
+      status(error.message, true);
+      return;
+    }
+    input.removeAttribute("aria-invalid");
+    changed();
+  }
+  function textInput(read, write, label, attributes = {}, commit) {
+    return el("input", { type: "text", value: read(), "aria-label": label, ...attributes,
+      oninput: event => {
+        const value = event.target.value.trim();
+        if (!value) { event.target.setAttribute("aria-invalid", "true"); return; }
+        apply(event.target, read, write, value);
+      },
+      onchange: event => { event.target.value = read(); event.target.removeAttribute("aria-invalid"); if (commit) commit(); } });
+  }
+  function moneyInput(read, write, label) {
+    return el("input", { type: "number", min: 0, step: 1 / scale(), value: major(read()).toFixed(digits()), "aria-label": label,
+      oninput: event => {
+        const number = event.target.valueAsNumber, minor = Math.round(number * scale());
+        if (event.target.value === "" || !Number.isFinite(number) || number < 0 || !Number.isSafeInteger(minor)) { event.target.setAttribute("aria-invalid", "true"); return; }
+        apply(event.target, read, write, minor);
+      },
+      onchange: event => { if (!event.target.hasAttribute("aria-invalid")) event.target.value = major(read()).toFixed(digits()); } });
+  }
+  function countInput(read, write, label) {
+    return el("input", { type: "number", min: 0, step: 1, class: "qty", value: read(), "aria-label": label,
+      oninput: event => {
+        const number = event.target.valueAsNumber;
+        if (event.target.value === "" || !Number.isSafeInteger(number) || number < 0) { event.target.setAttribute("aria-invalid", "true"); return; }
+        apply(event.target, read, write, number);
+      } });
   }
 
   function slider(key, control, kind, read, write, extra) {
@@ -485,7 +625,7 @@ globalThis.ToolCore = Object.freeze({
     return el("div", { class: "ctl" }, el("label", { for: id }, el("span", { text: control.label }), el("span", {}, output, note)), input);
   }
   function field(key) {
-    const kind = MONEY.includes(key) ? "money" : PERCENT.includes(key) ? "percent" : "count";
+    const kind = MONEY.includes(key) ? "money" : Core.SIGNED_KEYS.includes(key) ? "change" : PERCENT.includes(key) ? "percent" : "count";
     const sponsor = /^tier(\d)Price$/.exec(key), member = /^member(\d)Amount$/.exec(key);
     const baseline = sponsor ? () => doc.sponsorTiers[sponsor[1] - 1].baselinePrice
       : member ? () => doc.memberTiers[member[1] - 1].baselineAmount : null;
@@ -497,30 +637,114 @@ globalThis.ToolCore = Object.freeze({
     return el("div", { class: "card", "data-group": group }, el("h3", { text: info.title }), info.help ? el("p", { class: "help", text: info.help }) : null, ...body);
   }
 
+  function feesCard() {
+    const rows = doc.bands.map(band => {
+      const count = doc.members.filter(member => member.band === band.id).length, scenario = el("td", { class: "n" });
+      live.push(r => { scenario.textContent = money(r.bandFees.find(item => item.id === band.id).fee); });
+      return el("tr", { "data-band": band.id }, el("td", { text: band.label }), el("td", { class: "n", text: String(count) }),
+        el("td", { class: "n" }, moneyInput(() => band.fee, value => { band.fee = value; }, `${band.label} base fee`)), scenario);
+    });
+    const total = el("b");
+    live.push(r => { total.textContent = money(r.fees); });
+    return card("fees", field("feeChange"), field("payShare"),
+      el("table", { class: "mini" }, el("thead", {}, el("tr", {}, el("th", { text: "Band" }), el("th", { class: "n", text: "Members" }),
+        el("th", { class: "n", text: "Base fee" }), el("th", { class: "n", text: "This scenario" }))), el("tbody", {}, rows)),
+      el("p", { class: "sum" }, "Fees received: ", total));
+  }
+
+  function runningCard() {
+    const income = doc.running.income;
+    const rows = income.map(line => el("div", { class: "row", "data-income": line.id },
+      textInput(() => line.label, value => { line.label = value; }, "Income category"),
+      moneyInput(() => line.amount, value => { line.amount = value; }, `${line.label} amount`),
+      el("button", { type: "button", class: "x", text: "×", title: "Remove this income line", "aria-label": `Remove ${line.label}`,
+        onclick: () => { income.splice(income.indexOf(line), 1); restructure(); } })));
+    const result = el("b");
+    live.push(r => { result.textContent = signed(r.runningResult); result.className = r.runningResult < 0 ? "neg" : "pos"; });
+    return card("running", ...rows,
+      el("button", { type: "button", "data-add": "income", text: "Add income line",
+        onclick: () => {
+          const id = Core.nextId(income, "income");
+          income.push({ id, label: "New income", amount: 0 });
+          restructure(`[data-income="${id}"] input[type=text]`);
+        } }),
+      el("div", { class: "row" }, el("label", { text: "Running costs" }), moneyInput(() => doc.running.costs, value => { doc.running.costs = value; }, "Running costs")),
+      el("p", { class: "sum" }, "Running result (membership fees + income − running costs): ", result));
+  }
+
   function buildControls() {
-    sliders = [];
-    const feeSelect = el("select", { id: "feeOption", onchange: event => { values.feeOption = Number(event.target.value); render(); } },
-      ...doc.feeOptions.map((label, index) => el("option", { value: index, text: label })));
+    sliders = []; live = [];
+    const adjust = doc.eventCosts.categories.map(category => slider(`adjust-${category.id}`,
+      { ...doc.controls.categoryAdjust, label: `${category.label}, share of plan` }, "percent",
+      () => Core.adjustment(values, category.id), value => { values.categoryAdjust[category.id] = value; }));
     $("controls").replaceChildren(
       card("sponsors", field("tier1Count"), field("tier1Price"), field("tier2Count"), field("tier2Price")),
       card("grant", field("grant")),
       card("associations", ...Core.MEMBER_KEYS.map(field)),
-      card("fees", el("div", { class: "ctl" }, el("label", { for: "feeOption", text: "Fee level" }), feeSelect), field("payShare")),
-      card("running", field("giving")),
-      card("event", field("generalUplift"), field("venueUplift"), field("contingency"), field("travellers")));
+      feesCard(),
+      runningCard(),
+      card("event", field("generalUplift"), field("contingency"), ...adjust));
+  }
+
+  function buildEditor() {
+    const { categories, lines } = doc.eventCosts, rows = [];
+    for (const category of categories) {
+      const own = lines.filter(line => line.category === category.id);
+      rows.push(el("tr", { class: "cat", "data-category": category.id },
+        el("td", { colspan: 3 }, textInput(() => category.label, value => { category.label = value; }, "Category name", {}, () => { buildControls(); render(); })),
+        el("td", { class: "n", "data-category-total": category.id }),
+        el("td", { class: "act" },
+          el("button", { type: "button", "data-add-line": category.id, text: "Add line",
+            onclick: () => {
+              const id = Core.nextId(lines, "line"), last = lines.map(line => line.category).lastIndexOf(category.id);
+              lines.splice(last < 0 ? lines.length : last + 1, 0, { id, category: category.id, item: "New item", quantity: 1, unitCost: 0 });
+              restructure(`[data-line="${id}"] input[type=text]`);
+            } }),
+          el("button", { type: "button", "data-remove-category": category.id, text: "Delete", disabled: own.length > 0,
+            title: own.length ? "Delete or move this category's lines first" : "Delete this category",
+            onclick: () => {
+              Core.removeCategory(doc, category.id);
+              delete values.categoryAdjust[category.id];
+              restructure();
+            } }))));
+      for (const line of own) {
+        const move = el("select", { "aria-label": `Category of ${line.item}`, title: "Move to another category",
+          onchange: event => { line.category = event.target.value; restructure(); } },
+          ...categories.map(option => el("option", { value: option.id, text: option.label, selected: option.id === line.category })));
+        rows.push(el("tr", { "data-line": line.id },
+          el("td", {}, textInput(() => line.item, value => { line.item = value; }, "Item")),
+          el("td", { class: "n" }, countInput(() => line.quantity, value => { line.quantity = value; }, `${line.item} quantity`)),
+          el("td", { class: "n" }, moneyInput(() => line.unitCost, value => { line.unitCost = value; }, `${line.item} unit cost`)),
+          el("td", { class: "n", "data-line-total": line.id }),
+          el("td", { class: "act" }, move, el("button", { type: "button", class: "x", text: "×", title: "Delete this line", "aria-label": `Delete ${line.item}`,
+            onclick: () => { lines.splice(lines.indexOf(line), 1); restructure(); } }))));
+      }
+    }
+    $("cost-editor").replaceChildren(
+      el("table", { class: "editor" },
+        el("thead", {}, el("tr", {}, el("th", { text: "Item" }), el("th", { class: "n", text: "Quantity" }), el("th", { class: "n", text: `Unit cost (${doc.currency})` }),
+          el("th", { class: "n", text: "Planned" }), el("th"))),
+        el("tbody", {}, rows)),
+      el("p", {}, el("button", { type: "button", "data-add": "category", text: "Add category",
+        onclick: () => {
+          const id = Core.nextId(categories, "category");
+          categories.push({ id, label: "New category" });
+          $("cost-details").open = true;
+          restructure(`[data-category="${id}"] input[type=text]`);
+        } })));
   }
 
   function syncControls() {
     for (const item of sliders) {
       const value = item.read();
       item.input.value = String(value);
-      item.output.textContent = item.kind === "money" ? money(value) : item.kind === "percent" ? `${value}%` : String(value);
+      item.output.textContent = item.kind === "money" ? money(value) : item.kind === "change" ? Core.percentChange(value)
+        : item.kind === "percent" ? `${value}%` : String(value);
       item.note.textContent = item.extra ? ` (${item.extra()})` : "";
     }
-    $("feeOption").value = String(values.feeOption);
     for (const button of document.querySelectorAll("[data-preset]")) {
       const preset = doc.presets.find(item => item.id === button.getAttribute("data-preset"));
-      button.classList.toggle("on", Core.sameValues(Core.presetValues(doc, preset), values));
+      button.classList.toggle("on", Core.sameValues(doc, Core.presetValues(doc, preset), values));
     }
   }
 
@@ -536,6 +760,27 @@ globalThis.ToolCore = Object.freeze({
     ];
     $("kpis").replaceChildren(...items.map(([key, label, value, tone, detail]) => el("div", { class: "kpi" },
       el("div", { class: "l", text: label }), el("div", { class: `v ${tone}`, "data-output": key, text: value }), el("div", { class: "s", text: detail }))));
+  }
+
+  function costSummary(r) {
+    const c = r.costs, cell = (value, attributes = {}) => el("td", { class: "n", ...attributes, text: value });
+    $("cost-summary").replaceChildren(el("table", {},
+      el("thead", {}, el("tr", {}, el("th", { text: "Category" }), el("th", { class: "n", text: "Planned" }),
+        el("th", { class: "n", text: "Share of plan" }), el("th", { class: "n", text: "This scenario" }))),
+      el("tbody", {},
+        c.categories.map(category => el("tr", { "data-cost-category": category.id }, el("td", { text: category.label }),
+          cell(money(category.planned)), cell(`${category.percent}%`), cell(money(category.amount)))),
+        el("tr", {}, el("td", { text: `Subtotal, prices ${Core.percentChange(values.generalUplift)}` }), cell(money(c.planned)), cell(""), cell(money(c.subtotal))),
+        el("tr", {}, el("td", { text: `Contingency, ${values.contingency}%` }), cell(""), cell(""), cell(money(c.contingency))),
+        el("tr", { class: "total" }, el("td", { text: `${doc.eventLabel} cost` }), cell(""), cell(""), cell(money(c.cost), { "data-output": "cost" })))));
+    for (const node of document.querySelectorAll("[data-line-total]")) {
+      const line = doc.eventCosts.lines.find(item => item.id === node.getAttribute("data-line-total"));
+      node.textContent = line ? money(Core.lineTotal(line)) : "";
+    }
+    for (const node of document.querySelectorAll("[data-category-total]")) {
+      const category = c.categories.find(item => item.id === node.getAttribute("data-category-total"));
+      node.textContent = category ? money(category.planned) : "";
+    }
   }
 
   function axis(nodes, lo, hi, sy, W, L) {
@@ -614,7 +859,7 @@ globalThis.ToolCore = Object.freeze({
     });
     $("cash").replaceChildren(svg("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": "Cash position" }, nodes));
     const base = Core.model(doc, doc.defaults);
-    $("cash-note").textContent = `With the default settings the ${doc.eventLabel} result is ${signed(base.eventResult)}; running costs are ${money(doc.running.costs)} a year.`;
+    $("cash-note").textContent = `With the default settings the ${doc.eventLabel} result is ${signed(base.eventResult)}; running costs are ${money(doc.running.costs)} for the ${doc.periodLabel}.`;
   }
 
   function compare() {
@@ -622,14 +867,14 @@ globalThis.ToolCore = Object.freeze({
       .concat((doc.scenarios ?? []).map((scenario, index) => ({ name: scenario.name, values: scenario.values, pinned: index })));
     const body = rows.map(row => {
       const r = Core.model(doc, row.values), pinned = row.pinned >= 0;
-      return el("tr", { class: Core.sameValues(row.values, values) ? "cur" : null, "data-scenario": row.name, "data-pinned": pinned ? row.pinned : null },
+      return el("tr", { class: Core.sameValues(doc, row.values, values) ? "cur" : null, "data-scenario": row.name, "data-pinned": pinned ? row.pinned : null },
         el("td", {}, el("b", { text: row.name }), pinned ? " (pinned)" : null),
         el("td", {}, Core.describe(doc, row.values).flatMap((line, index) => index ? [el("br"), line] : [line])),
         el("td", { class: "n", "data-output": "eventIncome", text: money(r.eventIncome) }),
         el("td", { class: `n ${r.result < 0 ? "neg" : "pos"}`, "data-output": "result" }, el("b", { text: signed(r.result) })),
         el("td", { class: `n ${r.cash < 0 ? "neg" : ""}`, "data-output": "cash", text: money(r.cash) }),
         el("td", {}, el("button", { type: "button", "data-load": "", text: "Load", onclick: () => { values = Core.clone(row.values); render(); } }),
-          pinned ? el("button", { type: "button", "data-unpin": "", text: "Remove", onclick: () => { Core.unpin(doc, row.pinned); dirty = true; render(); } }) : null));
+          pinned ? el("button", { type: "button", "data-unpin": "", text: "Remove", onclick: () => { Core.unpin(doc, row.pinned); changed(); render(); } }) : null));
     });
     $("compare").replaceChildren(el("table", {},
       el("thead", {}, el("tr", {}, el("th", { text: "Scenario" }), el("th", { text: "What it includes" }),
@@ -640,9 +885,10 @@ globalThis.ToolCore = Object.freeze({
   function render() {
     const r = Core.model(doc, values);
     syncControls();
+    for (const update of live) update(r);
     kpis(r);
     $("includes").replaceChildren(el("b", { text: "This scenario includes: " }), Core.describe(doc, values).join(" · "));
-    stackChart(r); waterfallChart(r); cashChart(r); compare();
+    costSummary(r); stackChart(r); waterfallChart(r); cashChart(r); compare();
   }
 
   $("load").addEventListener("click", openFile);
@@ -659,8 +905,8 @@ globalThis.ToolCore = Object.freeze({
     const name = $("pin-name").value.trim() || `My scenario ${(doc.scenarios ?? []).length + 1}`;
     Core.pin(doc, name, values);
     $("pin-name").value = "";
-    dirty = true;
     render();
+    changed();
     status(`Pinned "${name}". Save to keep it in the JSON file.`);
   });
   document.addEventListener("dragover", event => event.preventDefault());
@@ -671,7 +917,7 @@ globalThis.ToolCore = Object.freeze({
   });
   window.addEventListener("beforeunload", event => { if (dirty) { event.preventDefault(); event.returnValue = ""; } });
   loadText(JSON.stringify(STARTER), "budget.json", null);
-  status("Starting budget with made-up figures. Move the sliders, or Load your own budget JSON.");
+  status("Starting budget with made-up figures. Edit the budget lines and move the sliders, or Load your own budget JSON.");
 })();
 </script>
 </body>
