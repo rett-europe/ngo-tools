@@ -99,6 +99,11 @@
       {
         "id": "travel",
         "label": "Funded travel"
+      },
+      {
+        "id": "communication",
+        "label": "Communication and printing",
+        "plan": 150000
       }
     ],
     "lines": [
@@ -376,7 +381,7 @@
     },
     "event": {
       "title": "Congress levers",
-      "help": "The current budget is the cost lines on the right. Price change (cost of living, another country) and contingency apply to every category; drivers change the counts behind the lines."
+      "help": "The current budget is the cost table on the right. Price change (cost of living, another country) and contingency apply to every category; drivers change the counts behind the lines. Change one category with its Change % in the table."
     }
   },
   "controls": {
@@ -555,10 +560,9 @@
         "drivers": {
           "travel-long": 6
         },
-        "overrides": {
-          "costs": {
-            "av": 250000
-          }
+        "categoryChange": {
+          "av": -30,
+          "catering": -10
         }
       }
     },
@@ -625,6 +629,9 @@
             "B": 30000
           },
           "runningCosts": 1150000
+        },
+        "categoryChange": {
+          "communication": 20
         }
       }
     }
@@ -633,6 +640,6 @@
     "All figures are synthetic example data.",
     "Amounts are integers in minor units (cents for EUR) and are shown in major units.",
     "Each derived amount is rounded half away from zero to a whole minor unit at the points listed in the README.",
-    "The current budget (cost lines, drivers' plan, income lines, fees) is shared by every scenario; levers and scenario amounts change only the scenario."
+    "The current budget (cost lines, category plans, drivers' plan, income lines, fees) is shared by every scenario; levers, category changes and scenario amounts change only the scenario."
   ]
 }

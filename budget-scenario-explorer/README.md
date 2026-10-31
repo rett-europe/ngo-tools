@@ -33,6 +33,9 @@ nothing and holds no data of its own.
      - Lines are grouped into categories, for example accommodation,
        catering, meeting rooms, audiovisual, organisation and staff, and
        funded travel. You can rename, add, delete and move them.
+     - A category without lines can have a Plan amount typed straight into
+       the budget table. Once it has lines, its Plan is their sum; adding its
+       first line turns the typed amount into that line.
      - A category can be deleted only when it has no lines, and a driver only
        when no line uses it.
    - **Running income and costs:** add, rename or remove income categories,
@@ -44,9 +47,14 @@ nothing and holds no data of its own.
      uses the driver follows.
    - **Price change:** a percentage on all event costs, for cost of living or
      a different country. **Contingency** is a percentage on the subtotal.
-   - **Scenario amounts:** type an amount next to a cost category, an income
-     category, the running costs or a band's fee to replace the current
-     figure in this scenario. Leave it empty to keep the current figure.
+   - **Change %:** step (±5) or type a percentage per cost category, against
+     its Plan. The Scenario column shows the resulting amount and Difference
+     the change from Plan. **Reset categories to Plan** clears them all.
+   - **Scenario amounts:** type an exact amount next to a cost category, an
+     income category, the running costs or a band's fee to replace the
+     current figure in this scenario. For a cost category, Change then shows
+     the percentage that amount implies. Leave it empty to keep the current
+     figure.
    Levers and scenario amounts are for exploring and are not saved unless you
    pin them.
 6. To keep a scenario, name it and choose **Pin current settings**. Pinned
@@ -78,7 +86,7 @@ currency.
 | `numberFormat` | Optional. `"eu"` (default) shows 1.234,56; `"en"` shows 1,234.56. |
 | `cash` | `start` amount, a `history` list of `{label, amount}` points, and `endLabel`. |
 | `running` | `income`: a list of `{id, label, amount}` income categories. `costs`: the running costs for the period. |
-| `eventCosts` | `drivers`: a list of `{id, label, plan}`, where `plan` is a whole number. `categories`: a list of `{id, label}`. `lines`: a list of `{id, category, item, quantity, per?, unitCost}`, where `quantity` is a whole number and `per` is an optional list of driver ids. |
+| `eventCosts` | `drivers`: a list of `{id, label, plan}`, where `plan` is a whole number. `categories`: a list of `{id, label, plan?}`; `plan` is an amount, allowed only for a category without lines. `lines`: a list of `{id, category, item, quantity, per?, unitCost}`, where `quantity` is a whole number and `per` is an optional list of driver ids. |
 | `sponsorTiers` | Exactly two tiers, each `{label, baselinePrice}`. |
 | `memberTiers` | Exactly three member contribution tiers, each `{label, baselineAmount}`. |
 | `grant` | `{label}` for an unconfirmed grant. |
@@ -88,7 +96,7 @@ currency.
 | `groups` | A title and optional help text for each control group: `sponsors`, `grant`, `associations`, `fees`, `running`, `event`. |
 | `controls` | `{label, min, max, step}` for each slider (see the list after this table). |
 | `defaults` | A complete set of values: every slider, plus `drivers` and `overrides`. |
-| `presets` | Each `{id, name, values}`. `values` overrides `defaults`; `drivers` and each `overrides` map are merged by id. |
+| `presets` | Each `{id, name, values}`. `values` overrides `defaults`; `drivers`, `categoryChange` and each `overrides` map are merged by id. |
 | `startPreset` | Optional preset `id` shown after loading. |
 | `scenarios` | Pinned scenarios, each `{name, values}` with a complete set of values. |
 | `notes` | Optional list of caveats shown at the foot of the page. |
@@ -107,6 +115,8 @@ sliders start at 0 or more.
 Besides the sliders, a set of values has:
 
 - `drivers`: `{driverId: count}`. A driver that is not listed is at its plan.
+- `categoryChange`: optional `{categoryId: percent}`, a whole-number change
+  of −100 or more. A category that is not listed is unchanged.
 - `overrides`: scenario amounts that replace a current figure.
   - `costs`: `{categoryId: amount}`, the final amount of an event cost
     category. Price change does not apply to it; contingency does.
@@ -134,9 +144,11 @@ into income lines and give each band one fee.
 Event cost:
 
 - Line amount = quantity × each of its drivers' counts × unit cost.
-- Planned cost of a category = sum of its line amounts with drivers at plan.
+- Planned cost of a category = sum of its line amounts with drivers at plan,
+  or its `plan` amount when it has no lines.
 - Category cost = its scenario amount if set; otherwise the sum of its line
-  amounts with the scenario's driver counts × (100 + priceChange) ÷ 100.
+  amounts with the scenario's driver counts (or its `plan`) ×
+  (100 + priceChange) × (100 + categoryChange) ÷ 10,000.
 - Subtotal = sum of the category costs.
 - Contingency = subtotal × contingency ÷ 100.
 - Event cost = subtotal + contingency. The plan column uses the planned costs
@@ -163,7 +175,7 @@ Results:
 - Cash at end = cash start + result.
 
 Each step that involves a division is rounded **half away from zero** to a
-whole minor unit at that point. These steps are each category's price-changed
+whole minor unit at that point. These steps are each category's changed
 cost, the contingency and each band's fees paid. Everything else is exact
 integer arithmetic.
 
