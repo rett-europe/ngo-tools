@@ -12,7 +12,7 @@ Your data stays in a JSON file that you load and save explicitly.
 | Tool | Purpose |
 | --- | --- |
 | [Calendar builder](calendar-builder/README.md) | Plan a multi-day, multi-track agenda on a time grid. |
-| [Budget scenario explorer](budget-scenario-explorer/README.md) | Explore what-if scenarios for a draft budget that includes one event, starting from an absolute current budget (event cost lines with drivers, income categories, membership fees) with levers and scenario amounts on top. |
+| [Budget scenario explorer](budget-scenario-explorer/README.md) | Explore what-if scenarios for a draft budget that includes one event. A Baseline tab holds the Plan in absolute, whole-unit amounts (event cost lines with drivers, income categories, membership fees); a New edition tab applies levers and Change % on top. |
 | [Group board](group-board/README.md) | Arrange event participants as cards into working groups or teams. |
 
 ## Try a tool

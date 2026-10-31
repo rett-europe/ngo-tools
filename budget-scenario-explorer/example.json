@@ -6,18 +6,18 @@
   "periodLabel": "Year 2",
   "eventLabel": "Congress",
   "currency": "EUR",
-  "minorDigits": 2,
+  "minorDigits": 0,
   "numberFormat": "eu",
   "cash": {
-    "start": 2500000,
+    "start": 25000,
     "history": [
       {
         "label": "Start of Year 1",
-        "amount": 3000000
+        "amount": 30000
       },
       {
         "label": "End of Year 1",
-        "amount": 2500000
+        "amount": 25000
       }
     ],
     "endLabel": "End of Year 2"
@@ -27,20 +27,20 @@
       {
         "id": "donations",
         "label": "Individual donations",
-        "amount": 900000
+        "amount": 9000
       },
       {
         "id": "online",
         "label": "Online fundraising",
-        "amount": 300000
+        "amount": 3000
       },
       {
         "id": "other",
         "label": "Other income",
-        "amount": 50000
+        "amount": 500
       }
     ],
-    "costs": 1200000
+    "costs": 12000
   },
   "eventCosts": {
     "drivers": [
@@ -103,7 +103,7 @@
       {
         "id": "communication",
         "label": "Communication and printing",
-        "plan": 150000
+        "plan": 1500
       }
     ],
     "lines": [
@@ -116,7 +116,7 @@
           "rooms",
           "nights"
         ],
-        "unitCost": 15000
+        "unitCost": 150
       },
       {
         "id": "line-2",
@@ -126,7 +126,7 @@
         "per": [
           "participants"
         ],
-        "unitCost": 4000
+        "unitCost": 40
       },
       {
         "id": "line-3",
@@ -136,7 +136,7 @@
         "per": [
           "participants"
         ],
-        "unitCost": 1100
+        "unitCost": 11
       },
       {
         "id": "line-4",
@@ -146,7 +146,7 @@
         "per": [
           "participants"
         ],
-        "unitCost": 3200
+        "unitCost": 32
       },
       {
         "id": "line-5",
@@ -156,84 +156,84 @@
         "per": [
           "participants"
         ],
-        "unitCost": 3500
+        "unitCost": 35
       },
       {
         "id": "line-6",
         "category": "meeting-rooms",
         "item": "Plenary room, day 1",
         "quantity": 1,
-        "unitCost": 120000
+        "unitCost": 1200
       },
       {
         "id": "line-7",
         "category": "meeting-rooms",
         "item": "Plenary room, day 2",
         "quantity": 1,
-        "unitCost": 100000
+        "unitCost": 1000
       },
       {
         "id": "line-8",
         "category": "meeting-rooms",
         "item": "Breakout rooms",
         "quantity": 2,
-        "unitCost": 60000
+        "unitCost": 600
       },
       {
         "id": "line-9",
         "category": "av",
         "item": "Projector and screen packages",
         "quantity": 4,
-        "unitCost": 35000
+        "unitCost": 350
       },
       {
         "id": "line-10",
         "category": "av",
         "item": "Sound system and microphones",
         "quantity": 2,
-        "unitCost": 40000
+        "unitCost": 400
       },
       {
         "id": "line-11",
         "category": "av",
         "item": "Technician (hours)",
         "quantity": 20,
-        "unitCost": 5000
+        "unitCost": 50
       },
       {
         "id": "line-12",
         "category": "av",
         "item": "Delivery and set-up",
         "quantity": 1,
-        "unitCost": 50000
+        "unitCost": 500
       },
       {
         "id": "line-13",
         "category": "organisation",
         "item": "Event agency fee",
         "quantity": 1,
-        "unitCost": 700000
+        "unitCost": 7000
       },
       {
         "id": "line-14",
         "category": "organisation",
         "item": "Project manager",
         "quantity": 1,
-        "unitCost": 400000
+        "unitCost": 4000
       },
       {
         "id": "line-15",
         "category": "organisation",
         "item": "On-site event coordinator (days)",
         "quantity": 3,
-        "unitCost": 60000
+        "unitCost": 600
       },
       {
         "id": "line-16",
         "category": "organisation",
         "item": "Photographer",
         "quantity": 1,
-        "unitCost": 40000
+        "unitCost": 400
       },
       {
         "id": "line-17",
@@ -243,7 +243,7 @@
         "per": [
           "travel-short"
         ],
-        "unitCost": 25000
+        "unitCost": 250
       },
       {
         "id": "line-18",
@@ -253,7 +253,7 @@
         "per": [
           "travel-medium"
         ],
-        "unitCost": 50000
+        "unitCost": 500
       },
       {
         "id": "line-19",
@@ -263,32 +263,32 @@
         "per": [
           "travel-long"
         ],
-        "unitCost": 90000
+        "unitCost": 900
       }
     ]
   },
   "sponsorTiers": [
     {
       "label": "Tier One",
-      "baselinePrice": 1200000
+      "baselinePrice": 12000
     },
     {
       "label": "Tier Two",
-      "baselinePrice": 600000
+      "baselinePrice": 6000
     }
   ],
   "memberTiers": [
     {
       "label": "Tier A",
-      "baselineAmount": 200000
+      "baselineAmount": 2000
     },
     {
       "label": "Tier B",
-      "baselineAmount": 100000
+      "baselineAmount": 1000
     },
     {
       "label": "Tier C",
-      "baselineAmount": 50000
+      "baselineAmount": 500
     }
   ],
   "grant": {
@@ -296,23 +296,23 @@
   },
   "fixedContribution": {
     "label": "Partner network",
-    "amount": 150000
+    "amount": 1500
   },
   "bands": [
     {
       "id": "A",
       "label": "Band A",
-      "fee": 40000
+      "fee": 400
     },
     {
       "id": "B",
       "label": "Band B",
-      "fee": 25000
+      "fee": 250
     },
     {
       "id": "C",
       "label": "Band C",
-      "fee": 10000
+      "fee": 100
     }
   ],
   "members": [
@@ -361,7 +361,7 @@
   "groups": {
     "sponsors": {
       "title": "Sponsors",
-      "help": "How many sponsors sign up at each tier, and the price of each package."
+      "help": "How many sponsors sign up at each tier, and the price of each package. Baseline prices are on the Baseline tab."
     },
     "grant": {
       "title": "Grant",
@@ -373,15 +373,15 @@
     },
     "fees": {
       "title": "Membership fees",
-      "help": "Current fee is what each member in the band pays today. Enter a scenario fee to try a different amount, and set the share of members expected to pay."
+      "help": "Plan fees come from the Baseline tab. Step a band's Change % or type its new fee, and set the share of members expected to pay."
     },
     "running": {
       "title": "Running income and costs",
-      "help": "Current amounts for the whole period, by category. Enter a scenario amount to try a different figure; leave it empty to keep the current one."
+      "help": "Plan amounts come from the Baseline tab. Step a line's Change % or type its new amount; leave it empty to keep the Plan."
     },
     "event": {
       "title": "Congress levers",
-      "help": "The current budget is the cost table on the right. Price change (cost of living, another country) and contingency apply to every category; drivers change the counts behind the lines. Change one category with its Change % in the table."
+      "help": "Price change (cost of living, another country) and contingency apply to every category; drivers change the counts behind the cost lines. Change one category with its Change % in the cost table."
     }
   },
   "controls": {
@@ -393,9 +393,9 @@
     },
     "tier1Price": {
       "label": "Tier One price",
-      "min": 500000,
-      "max": 3000000,
-      "step": 50000
+      "min": 5000,
+      "max": 30000,
+      "step": 500
     },
     "tier2Count": {
       "label": "Tier Two sponsors",
@@ -405,9 +405,9 @@
     },
     "tier2Price": {
       "label": "Tier Two price",
-      "min": 250000,
-      "max": 1500000,
-      "step": 25000
+      "min": 2500,
+      "max": 15000,
+      "step": 250
     },
     "member1Count": {
       "label": "Tier A members",
@@ -418,8 +418,8 @@
     "member1Amount": {
       "label": "Tier A contribution",
       "min": 0,
-      "max": 500000,
-      "step": 5000
+      "max": 5000,
+      "step": 50
     },
     "member2Count": {
       "label": "Tier B members",
@@ -430,8 +430,8 @@
     "member2Amount": {
       "label": "Tier B contribution",
       "min": 0,
-      "max": 300000,
-      "step": 5000
+      "max": 3000,
+      "step": 50
     },
     "member3Count": {
       "label": "Tier C members",
@@ -442,14 +442,14 @@
     "member3Amount": {
       "label": "Tier C contribution",
       "min": 0,
-      "max": 200000,
-      "step": 5000
+      "max": 2000,
+      "step": 50
     },
     "grant": {
       "label": "Grant amount",
       "min": 0,
-      "max": 4000000,
-      "step": 100000
+      "max": 40000,
+      "step": 1000
     },
     "payShare": {
       "label": "Members paying",
@@ -472,15 +472,15 @@
   },
   "defaults": {
     "tier1Count": 2,
-    "tier1Price": 1200000,
+    "tier1Price": 12000,
     "tier2Count": 3,
-    "tier2Price": 600000,
+    "tier2Price": 6000,
     "member1Count": 1,
-    "member1Amount": 200000,
+    "member1Amount": 2000,
     "member2Count": 2,
-    "member2Amount": 100000,
+    "member2Amount": 1000,
     "member3Count": 2,
-    "member3Amount": 50000,
+    "member3Amount": 500,
     "grant": 0,
     "payShare": 100,
     "priceChange": 0,
@@ -504,7 +504,7 @@
         "priceChange": 5,
         "overrides": {
           "income": {
-            "donations": 750000
+            "donations": 7500
           }
         }
       }
@@ -513,15 +513,15 @@
       "id": "grant",
       "name": "Grant awarded",
       "values": {
-        "grant": 2000000
+        "grant": 20000
       }
     },
     {
       "id": "tiers",
       "name": "Higher tier prices",
       "values": {
-        "tier1Price": 1500000,
-        "tier2Price": 750000
+        "tier1Price": 15000,
+        "tier2Price": 7500
       }
     },
     {
@@ -572,8 +572,8 @@
       "values": {
         "overrides": {
           "fees": {
-            "A": 45000,
-            "C": 12000
+            "A": 450,
+            "C": 120
           }
         }
       }
@@ -582,8 +582,8 @@
       "id": "combined",
       "name": "Combined",
       "values": {
-        "grant": 1000000,
-        "tier1Price": 1250000,
+        "grant": 10000,
+        "tier1Price": 12500,
         "member2Count": 3,
         "payShare": 90,
         "drivers": {
@@ -592,7 +592,7 @@
         },
         "overrides": {
           "fees": {
-            "A": 45000
+            "A": 450
           }
         }
       }
@@ -604,16 +604,16 @@
       "name": "Example pinned scenario",
       "values": {
         "tier1Count": 3,
-        "tier1Price": 1200000,
+        "tier1Price": 12000,
         "tier2Count": 2,
-        "tier2Price": 600000,
+        "tier2Price": 6000,
         "member1Count": 1,
-        "member1Amount": 250000,
+        "member1Amount": 2500,
         "member2Count": 3,
-        "member2Amount": 100000,
+        "member2Amount": 1000,
         "member3Count": 1,
-        "member3Amount": 50000,
-        "grant": 500000,
+        "member3Amount": 500,
+        "grant": 5000,
         "payShare": 95,
         "priceChange": 4,
         "contingency": 8,
@@ -623,12 +623,12 @@
         },
         "overrides": {
           "costs": {
-            "organisation": 1250000
+            "organisation": 12500
           },
           "fees": {
-            "B": 30000
+            "B": 300
           },
-          "runningCosts": 1150000
+          "runningCosts": 11500
         },
         "categoryChange": {
           "communication": 20
@@ -638,8 +638,8 @@
   ],
   "notes": [
     "All figures are synthetic example data.",
-    "Amounts are integers in minor units (cents for EUR) and are shown in major units.",
-    "Each derived amount is rounded half away from zero to a whole minor unit at the points listed in the README.",
-    "The current budget (cost lines, category plans, drivers' plan, income lines, fees) is shared by every scenario; levers, category changes and scenario amounts change only the scenario."
+    "Amounts are whole euros (minorDigits 0): this is a high-level budget.",
+    "Each derived amount is rounded half away from zero to a whole euro at the points listed in the README.",
+    "The Baseline tab (cost lines, category lump sums, drivers' plan, income, running costs, fees) is shared by every scenario; levers, changes and New edition amounts change only the scenario."
   ]
 }
