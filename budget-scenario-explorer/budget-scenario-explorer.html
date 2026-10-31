@@ -9,7 +9,15 @@
 :root{--ink:#1d2731;--muted:#5f6b76;--line:#dfe4e8;--bg:#f6f8f9;--card:#fff;--accent:#2f5d8a;--red:#b3261e;--green:#1e7a46}
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.45 system-ui,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
-header{padding:16px 24px 8px;background:var(--card);border-bottom:1px solid var(--line)}
+header{padding:16px 24px 0;background:var(--card);border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:4px;margin-top:12px}
+.tabs button{border-radius:8px 8px 0 0;border-color:var(--line);border-bottom:0;margin-bottom:-1px;padding:7px 16px;background:#eef2f5}
+.tabs button[aria-selected=true]{background:var(--bg);color:var(--accent);font-weight:700;border-bottom:1px solid var(--bg)}
+.tabs small{color:var(--muted);font-weight:400;margin-left:6px}
+.banner{margin:12px 24px 0;padding:8px 12px;background:#eaf2fb;border:1px solid #cfe0f1;border-radius:8px;color:#28527a}
+.baseline{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px;padding:12px 24px 16px;align-items:start}
+#cost-editor{overflow-x:auto}
+@media (max-width:1100px){.baseline{grid-template-columns:1fr}}
 header h1{margin:0;font-size:24px}
 header p{margin:4px 0 0;color:var(--muted)}
 .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
@@ -57,6 +65,7 @@ tr.total td{font-weight:700;border-top:2px solid #c9d1d8}
 table.mini th,table.mini td{padding:4px 3px;vertical-align:middle}
 table.mini th{font-size:12px;color:var(--muted);font-weight:600}
 table.mini input[type=number]{width:6.5em}
+table.mini .pct input.pct-in{width:3.2em}
 table.mini input[type=text]{width:100%}
 table.summary td{vertical-align:middle}
 table.summary tr.changed td{background:#fff8e6}
@@ -70,15 +79,20 @@ table.summary tr.changed td{background:#fff8e6}
 .reset{margin:6px 0 0;text-align:right}
 table.editor td{vertical-align:middle;padding:4px 6px}
 table.editor input[type=text]{width:100%}
-table.editor input.qty{width:5em}
+table.editor input.qty{width:4em}
+table.editor input[type=number]:not(.qty){width:6.5em}
+table.editor td:first-child input[type=text]{min-width:9em}
+table.editor select{max-width:8.5em}
+table.editor td.act select{max-width:7em}
 table.editor tr.cat td{background:#f1f4f7;font-weight:600}
+table.editor tr.plan-sum td{font-weight:600}
 td.act{white-space:nowrap}
 details{margin:8px 0}
 summary{cursor:pointer;color:var(--accent);font-weight:600}
 footer{padding:8px 24px 24px;font-size:12px;color:var(--muted)}
 .pinbar{display:flex;gap:6px;margin-bottom:6px}
 .pinbar input{font:inherit;padding:4px 8px;border:1px solid #b9c3cc;border-radius:6px;min-width:220px}
-@media print{.presets,.toolbar,button,.pinbar,details{display:none}main{grid-template-columns:1fr}}
+@media print{.presets,.toolbar,.tabs,.banner,button,.pinbar{display:none}main{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -91,9 +105,21 @@ footer{padding:8px 24px 24px;font-size:12px;color:var(--muted)}
     <input id="file-input" type="file" accept=".json,application/json" hidden>
     <span id="status" role="status"></span>
   </div>
+  <div class="tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" id="tab-baseline" aria-controls="panel-baseline" aria-selected="true" data-tab="baseline">1 · Baseline<small>edit amounts</small></button>
+    <button type="button" role="tab" id="tab-edition" aria-controls="panel-edition" aria-selected="false" data-tab="edition">2 · New edition<small>levers and results</small></button>
+  </div>
 </header>
 
 <div id="app">
+  <section id="panel-baseline" role="tabpanel" aria-labelledby="tab-baseline">
+    <p class="banner">Everything on this tab is an absolute amount saved in the file: the budget as you know it today. It is the Plan that the New edition tab starts from.</p>
+    <div class="baseline">
+      <div class="card" id="cost-editor"></div>
+      <div id="baseline-side"></div>
+    </div>
+  </section>
+  <section id="panel-edition" role="tabpanel" aria-labelledby="tab-edition" hidden>
   <div class="presets" id="presets"></div>
   <main>
     <section id="controls"></section>
@@ -102,8 +128,7 @@ footer{padding:8px 24px 24px;font-size:12px;color:var(--muted)}
       <div class="includes" id="includes"></div>
       <h2 id="costs-heading"></h2>
       <div id="cost-summary"></div>
-      <p class="note">Plan is the current budget: each category's cost lines at their planned driver counts (or the amount you type for a category without lines), plus the default contingency. Change is a percentage on a category, on top of the driver levers and the price change; the Scenario box shows the result. Type an exact Scenario amount instead and Change shows the percentage it implies. Contingency is then added.</p>
-      <details id="cost-details"><summary>Edit cost lines and drivers</summary><div id="cost-editor"></div></details>
+      <p class="note">Plan comes from the Baseline tab: each category's cost lines at their planned driver counts (or its lump sum), plus the planned contingency. Change is a percentage on a category, on top of the driver levers and the price change; the New edition box shows the result. Type an exact New edition amount instead and Change shows the percentage it implies. Contingency is then added.</p>
       <h2 id="stack-heading"></h2>
       <div id="stack"></div>
       <div class="legend" id="stack-legend"></div>
@@ -115,11 +140,12 @@ footer{padding:8px 24px 24px;font-size:12px;color:var(--muted)}
       <div id="cash"></div>
       <p class="note" id="cash-note"></p>
       <h2>Compare scenarios</h2>
-      <p class="note">Presets start from the defaults in the file. Pin the current settings to keep them as a row; pinned scenarios are written into the JSON when you save. The current budget (cost lines, drivers' plan, income, fees) is shared by every scenario.</p>
+      <p class="note">Presets start from the defaults in the file. Pin the current settings to keep them as a row; pinned scenarios are written into the JSON when you save. Every scenario shares the Baseline tab.</p>
       <div class="pinbar"><input id="pin-name" type="text" placeholder="Name for this scenario" aria-label="Name for this scenario"><button id="pin" type="button">Pin current settings</button></div>
       <div id="compare"></div>
     </section>
   </main>
+  </section>
   <footer><b>Basis and caveats</b><ul id="notes"></ul></footer>
 </div>
 
@@ -457,8 +483,8 @@ function model(doc, s) {
     ...doc.memberTiers.map((tier, i) => ({ label: `one ${tier.label} member`, amount: s[`member${i + 1}Count`] > 0 ? s[`member${i + 1}Amount`] : 0 })),
   ].sort((a, b) => b.amount - a.amount);
   const top = funders[0];
-  // Tenths of a percent; null (not applicable) when there is no cost or no funder.
-  const topShare = cost > 0 && top.amount > 0 ? mulDiv(top.amount, 1000, cost) : null;
+  // Whole percent; null (not applicable) when there is no cost or no funder.
+  const topShare = cost > 0 && top.amount > 0 ? mulDiv(top.amount, 100, cost) : null;
   return {
     costs: eventCosts, cost, tier1, tier2, memberLines, members, grant: s.grant, bandFees, fees, incomeLines, otherIncome, runningCosts,
     runningResult, eventIncome, eventResult, result, cash, top: { label: top.label, amount: top.amount }, topShare,
@@ -477,15 +503,11 @@ function money(doc, minor) {
 }
 const signed = (doc, minor) => `${minor > 0 ? "+" : ""}${money(doc, minor)}`;
 const percentChange = value => `${value < 0 ? MINUS : "+"}${Math.abs(value)}%`;
-function thousands(doc, minor) {
-  const tenths = mulDiv(minor, 1, 100 * 10 ** (doc.minorDigits ?? 2)), magnitude = Math.abs(tenths);
-  return `${tenths < 0 ? MINUS : ""}${Math.floor(magnitude / 10)}${separators(doc)[1]}${magnitude % 10}k`;
-}
 function change(value, baseline) {
   const percent = mulDiv(value - baseline, 100, baseline);
   return percent === 0 ? "same as baseline" : `${percent > 0 ? "+" : MINUS}${Math.abs(percent)}% vs baseline`;
 }
-const share = (doc, tenths) => (tenths === null ? "n/a" : `${Math.floor(tenths / 10)}${separators(doc)[1]}${tenths % 10}%`);
+const share = percent => (percent === null ? "n/a" : `${percent}%`);
 
 function describe(doc, values) {
   const s = normalise(values), r = model(doc, s), m = minor => money(doc, minor), [tierOne, tierTwo] = doc.sponsorTiers, lines = [];
@@ -496,10 +518,10 @@ function describe(doc, values) {
     return `${count} ${tier.label} × ${m(each)} (${change(each, tier.baselineAmount)})`;
   }).join(", ")}, plus ${doc.fixedContribution.label} = ${m(r.members)}`);
   lines.push(s.grant > 0 ? `${doc.grant.label} ${m(s.grant)}` : `No ${doc.grant.label}`);
-  const bands = r.bandFees.filter(band => band.fee !== band.current).map(band => `${band.label} fee ${m(band.fee)} (now ${m(band.current)})`);
-  lines.push(`${bands.length ? bands.join(", ") : "Fees unchanged"}${s.payShare < 100 ? `, ${s.payShare}% of members pay` : `, all ${doc.members.length} members pay`}: fees ${m(r.fees)}`);
-  const running = r.incomeLines.filter(line => line.amount !== line.current).map(line => `${line.label} ${m(line.amount)} (now ${m(line.current)})`);
-  if (r.runningCosts !== doc.running.costs) running.push(`running costs ${m(r.runningCosts)} (now ${m(doc.running.costs)})`);
+  const bands = r.bandFees.filter(band => band.fee !== band.current).map(band => `${band.label} fee ${m(band.fee)} (plan ${m(band.current)})`);
+  lines.push(`${bands.length ? bands.join(", ") : "Fees as planned"}${s.payShare < 100 ? `, ${s.payShare}% of members pay` : `, all ${doc.members.length} members pay`}: fees ${m(r.fees)}`);
+  const running = r.incomeLines.filter(line => line.amount !== line.current).map(line => `${line.label} ${m(line.amount)} (plan ${m(line.current)})`);
+  if (r.runningCosts !== doc.running.costs) running.push(`running costs ${m(r.runningCosts)} (plan ${m(doc.running.costs)})`);
   if (running.length) lines.push(`Running: ${running.join(", ")}`);
   const parts = [];
   if (s.priceChange !== 0) parts.push(`prices ${percentChange(s.priceChange)}`);
@@ -580,7 +602,7 @@ function removeIncome(doc, id) {
 globalThis.ToolCore = Object.freeze({
   TOOL, VERSION, CONTROL_KEYS, SIGNED_KEYS, MEMBER_KEYS, VALUE_KEYS, OVERRIDE_KEYS, DataError, clone, parse, validate, serialise, mulDiv, add,
   mergeValues, normalise, presetValues, startValues, tidy, driverPlan, driverValue, lineAmount, linePlan, overrideOf, changeOf, costs, model,
-  money, signed, percentChange, thousands, change, share, describe, sameValues, pin, unpin, nextId, removeCategory, removeDriver, removeIncome,
+  money, signed, percentChange, change, share, describe, sameValues, pin, unpin, nextId, removeCategory, removeDriver, removeIncome,
 });
 </script>
 
@@ -595,9 +617,9 @@ globalThis.ToolCore = Object.freeze({
   const PERCENT = ["payShare", "contingency"];
   const $ = id => document.getElementById(id);
   let doc = null, values = null, fileName = "budget.json", fileHandle = null, dirty = false;
-  let sliders = [], live = [], amounts = [], changes = [];
+  let sliders = [], live = [], amounts = [], changes = [], steppers = [];
   // Synthetic starting budget so the page is usable before any file is loaded; same shape as example.json.
-  const STARTER = {"tool":"ngo-tools-budget-scenario-explorer","version":3,"title":"Starting budget","subtitle":"Made-up figures to show how the tool works. Edit them, or load your own budget JSON.","periodLabel":"Year 2","eventLabel":"Congress","currency":"EUR","minorDigits":2,"numberFormat":"eu","cash":{"start":2500000,"history":[{"label":"Start of Year 1","amount":3000000},{"label":"End of Year 1","amount":2500000}],"endLabel":"End of Year 2"},"running":{"income":[{"id":"donations","label":"Individual donations","amount":900000},{"id":"online","label":"Online fundraising","amount":300000},{"id":"other","label":"Other income","amount":50000}],"costs":1200000},"eventCosts":{"drivers":[{"id":"participants","label":"Participants","plan":80},{"id":"rooms","label":"Double rooms","plan":40},{"id":"nights","label":"Nights","plan":2},{"id":"travel-short","label":"Funded travellers, short trip","plan":5},{"id":"travel-medium","label":"Funded travellers, medium trip","plan":15},{"id":"travel-long","label":"Funded travellers, long trip","plan":10}],"categories":[{"id":"accommodation","label":"Accommodation"},{"id":"catering","label":"Catering"},{"id":"meeting-rooms","label":"Meeting rooms"},{"id":"av","label":"Audiovisual"},{"id":"organisation","label":"Organisation and staff"},{"id":"travel","label":"Funded travel"},{"id":"communication","label":"Communication and printing","plan":150000}],"lines":[{"id":"line-1","category":"accommodation","item":"Double rooms, per night","quantity":1,"per":["rooms","nights"],"unitCost":15000},{"id":"line-2","category":"catering","item":"Welcome dinner","quantity":1,"per":["participants"],"unitCost":4000},{"id":"line-3","category":"catering","item":"Coffee breaks (3 per person)","quantity":3,"per":["participants"],"unitCost":1100},{"id":"line-4","category":"catering","item":"Lunches (2 per person)","quantity":2,"per":["participants"],"unitCost":3200},{"id":"line-5","category":"catering","item":"Congress dinner","quantity":1,"per":["participants"],"unitCost":3500},{"id":"line-6","category":"meeting-rooms","item":"Plenary room, day 1","quantity":1,"unitCost":120000},{"id":"line-7","category":"meeting-rooms","item":"Plenary room, day 2","quantity":1,"unitCost":100000},{"id":"line-8","category":"meeting-rooms","item":"Breakout rooms","quantity":2,"unitCost":60000},{"id":"line-9","category":"av","item":"Projector and screen packages","quantity":4,"unitCost":35000},{"id":"line-10","category":"av","item":"Sound system and microphones","quantity":2,"unitCost":40000},{"id":"line-11","category":"av","item":"Technician (hours)","quantity":20,"unitCost":5000},{"id":"line-12","category":"av","item":"Delivery and set-up","quantity":1,"unitCost":50000},{"id":"line-13","category":"organisation","item":"Event agency fee","quantity":1,"unitCost":700000},{"id":"line-14","category":"organisation","item":"Project manager","quantity":1,"unitCost":400000},{"id":"line-15","category":"organisation","item":"On-site event coordinator (days)","quantity":3,"unitCost":60000},{"id":"line-16","category":"organisation","item":"Photographer","quantity":1,"unitCost":40000},{"id":"line-17","category":"travel","item":"Travel grant, short trip","quantity":1,"per":["travel-short"],"unitCost":25000},{"id":"line-18","category":"travel","item":"Travel grant, medium trip","quantity":1,"per":["travel-medium"],"unitCost":50000},{"id":"line-19","category":"travel","item":"Travel grant, long trip","quantity":1,"per":["travel-long"],"unitCost":90000}]},"sponsorTiers":[{"label":"Tier One","baselinePrice":1200000},{"label":"Tier Two","baselinePrice":600000}],"memberTiers":[{"label":"Tier A","baselineAmount":200000},{"label":"Tier B","baselineAmount":100000},{"label":"Tier C","baselineAmount":50000}],"grant":{"label":"Pending grant"},"fixedContribution":{"label":"Partner network","amount":150000},"bands":[{"id":"A","label":"Band A","fee":40000},{"id":"B","label":"Band B","fee":25000},{"id":"C","label":"Band C","fee":10000}],"members":[{"id":"m1","name":"Member Alpha","band":"A","info":"Example note"},{"id":"m2","name":"Member Bravo","band":"A"},{"id":"m3","name":"Member Charlie","band":"B"},{"id":"m4","name":"Member Delta","band":"B"},{"id":"m5","name":"Member Echo","band":"B"},{"id":"m6","name":"Member Foxtrot","band":"C"},{"id":"m7","name":"Member Golf","band":"C"},{"id":"m8","name":"Member Hotel","band":"C"}],"groups":{"sponsors":{"title":"Sponsors","help":"How many sponsors sign up at each tier, and the price of each package."},"grant":{"title":"Grant","help":"A grant that is not yet confirmed."},"associations":{"title":"Member contributions","help":"How many members contribute at each tier, and the amount each one gives."},"fees":{"title":"Membership fees","help":"Current fee is what each member in the band pays today. Enter a scenario fee to try a different amount, and set the share of members expected to pay."},"running":{"title":"Running income and costs","help":"Current amounts for the whole period, by category. Enter a scenario amount to try a different figure; leave it empty to keep the current one."},"event":{"title":"Congress levers","help":"The current budget is the cost table on the right. Price change (cost of living, another country) and contingency apply to every category; drivers change the counts behind the lines. Change one category with its Change % in the table."}},"controls":{"tier1Count":{"label":"Tier One sponsors","min":0,"max":6,"step":1},"tier1Price":{"label":"Tier One price","min":500000,"max":3000000,"step":50000},"tier2Count":{"label":"Tier Two sponsors","min":0,"max":10,"step":1},"tier2Price":{"label":"Tier Two price","min":250000,"max":1500000,"step":25000},"member1Count":{"label":"Tier A members","min":0,"max":10,"step":1},"member1Amount":{"label":"Tier A contribution","min":0,"max":500000,"step":5000},"member2Count":{"label":"Tier B members","min":0,"max":10,"step":1},"member2Amount":{"label":"Tier B contribution","min":0,"max":300000,"step":5000},"member3Count":{"label":"Tier C members","min":0,"max":10,"step":1},"member3Amount":{"label":"Tier C contribution","min":0,"max":200000,"step":5000},"grant":{"label":"Grant amount","min":0,"max":4000000,"step":100000},"payShare":{"label":"Members paying","min":50,"max":100,"step":5},"priceChange":{"label":"Price change (cost of living, country)","min":-10,"max":30,"step":1},"contingency":{"label":"Contingency","min":0,"max":20,"step":1}},"defaults":{"tier1Count":2,"tier1Price":1200000,"tier2Count":3,"tier2Price":600000,"member1Count":1,"member1Amount":200000,"member2Count":2,"member2Amount":100000,"member3Count":2,"member3Amount":50000,"grant":0,"payShare":100,"priceChange":0,"contingency":10,"drivers":{},"overrides":{}},"presets":[{"id":"base","name":"Current budget","values":{}},{"id":"downside","name":"Downside","values":{"tier1Count":1,"tier2Count":2,"payShare":80,"priceChange":5,"overrides":{"income":{"donations":750000}}}},{"id":"grant","name":"Grant awarded","values":{"grant":2000000}},{"id":"tiers","name":"Higher tier prices","values":{"tier1Price":1500000,"tier2Price":750000}},{"id":"members","name":"More members contribute","values":{"member1Count":2,"member2Count":4,"member3Count":5}},{"id":"bigger","name":"100 participants","values":{"drivers":{"participants":100,"rooms":50}}},{"id":"country","name":"Pricier country","values":{"priceChange":8,"drivers":{"travel-long":14}}},{"id":"leaner","name":"Leaner event","values":{"drivers":{"travel-long":6},"categoryChange":{"av":-30,"catering":-10}}},{"id":"fees","name":"Higher fees","values":{"overrides":{"fees":{"A":45000,"C":12000}}}},{"id":"combined","name":"Combined","values":{"grant":1000000,"tier1Price":1250000,"member2Count":3,"payShare":90,"drivers":{"participants":90,"rooms":45},"overrides":{"fees":{"A":45000}}}}],"startPreset":"base","notes":["All figures are synthetic example data.","Amounts are integers in minor units (cents for EUR) and are shown in major units.","Each derived amount is rounded half away from zero to a whole minor unit at the points listed in the README.","The current budget (cost lines, category plans, drivers' plan, income lines, fees) is shared by every scenario; levers, category changes and scenario amounts change only the scenario."]};
+  const STARTER = {"tool":"ngo-tools-budget-scenario-explorer","version":3,"title":"Starting budget","subtitle":"Made-up figures to show how the tool works. Edit them, or load your own budget JSON.","periodLabel":"Year 2","eventLabel":"Congress","currency":"EUR","minorDigits":0,"numberFormat":"eu","cash":{"start":25000,"history":[{"label":"Start of Year 1","amount":30000},{"label":"End of Year 1","amount":25000}],"endLabel":"End of Year 2"},"running":{"income":[{"id":"donations","label":"Individual donations","amount":9000},{"id":"online","label":"Online fundraising","amount":3000},{"id":"other","label":"Other income","amount":500}],"costs":12000},"eventCosts":{"drivers":[{"id":"participants","label":"Participants","plan":80},{"id":"rooms","label":"Double rooms","plan":40},{"id":"nights","label":"Nights","plan":2},{"id":"travel-short","label":"Funded travellers, short trip","plan":5},{"id":"travel-medium","label":"Funded travellers, medium trip","plan":15},{"id":"travel-long","label":"Funded travellers, long trip","plan":10}],"categories":[{"id":"accommodation","label":"Accommodation"},{"id":"catering","label":"Catering"},{"id":"meeting-rooms","label":"Meeting rooms"},{"id":"av","label":"Audiovisual"},{"id":"organisation","label":"Organisation and staff"},{"id":"travel","label":"Funded travel"},{"id":"communication","label":"Communication and printing","plan":1500}],"lines":[{"id":"line-1","category":"accommodation","item":"Double rooms, per night","quantity":1,"per":["rooms","nights"],"unitCost":150},{"id":"line-2","category":"catering","item":"Welcome dinner","quantity":1,"per":["participants"],"unitCost":40},{"id":"line-3","category":"catering","item":"Coffee breaks (3 per person)","quantity":3,"per":["participants"],"unitCost":11},{"id":"line-4","category":"catering","item":"Lunches (2 per person)","quantity":2,"per":["participants"],"unitCost":32},{"id":"line-5","category":"catering","item":"Congress dinner","quantity":1,"per":["participants"],"unitCost":35},{"id":"line-6","category":"meeting-rooms","item":"Plenary room, day 1","quantity":1,"unitCost":1200},{"id":"line-7","category":"meeting-rooms","item":"Plenary room, day 2","quantity":1,"unitCost":1000},{"id":"line-8","category":"meeting-rooms","item":"Breakout rooms","quantity":2,"unitCost":600},{"id":"line-9","category":"av","item":"Projector and screen packages","quantity":4,"unitCost":350},{"id":"line-10","category":"av","item":"Sound system and microphones","quantity":2,"unitCost":400},{"id":"line-11","category":"av","item":"Technician (hours)","quantity":20,"unitCost":50},{"id":"line-12","category":"av","item":"Delivery and set-up","quantity":1,"unitCost":500},{"id":"line-13","category":"organisation","item":"Event agency fee","quantity":1,"unitCost":7000},{"id":"line-14","category":"organisation","item":"Project manager","quantity":1,"unitCost":4000},{"id":"line-15","category":"organisation","item":"On-site event coordinator (days)","quantity":3,"unitCost":600},{"id":"line-16","category":"organisation","item":"Photographer","quantity":1,"unitCost":400},{"id":"line-17","category":"travel","item":"Travel grant, short trip","quantity":1,"per":["travel-short"],"unitCost":250},{"id":"line-18","category":"travel","item":"Travel grant, medium trip","quantity":1,"per":["travel-medium"],"unitCost":500},{"id":"line-19","category":"travel","item":"Travel grant, long trip","quantity":1,"per":["travel-long"],"unitCost":900}]},"sponsorTiers":[{"label":"Tier One","baselinePrice":12000},{"label":"Tier Two","baselinePrice":6000}],"memberTiers":[{"label":"Tier A","baselineAmount":2000},{"label":"Tier B","baselineAmount":1000},{"label":"Tier C","baselineAmount":500}],"grant":{"label":"Pending grant"},"fixedContribution":{"label":"Partner network","amount":1500},"bands":[{"id":"A","label":"Band A","fee":400},{"id":"B","label":"Band B","fee":250},{"id":"C","label":"Band C","fee":100}],"members":[{"id":"m1","name":"Member Alpha","band":"A","info":"Example note"},{"id":"m2","name":"Member Bravo","band":"A"},{"id":"m3","name":"Member Charlie","band":"B"},{"id":"m4","name":"Member Delta","band":"B"},{"id":"m5","name":"Member Echo","band":"B"},{"id":"m6","name":"Member Foxtrot","band":"C"},{"id":"m7","name":"Member Golf","band":"C"},{"id":"m8","name":"Member Hotel","band":"C"}],"groups":{"sponsors":{"title":"Sponsors","help":"How many sponsors sign up at each tier, and the price of each package. Baseline prices are on the Baseline tab."},"grant":{"title":"Grant","help":"A grant that is not yet confirmed."},"associations":{"title":"Member contributions","help":"How many members contribute at each tier, and the amount each one gives."},"fees":{"title":"Membership fees","help":"Plan fees come from the Baseline tab. Step a band's Change % or type its new fee, and set the share of members expected to pay."},"running":{"title":"Running income and costs","help":"Plan amounts come from the Baseline tab. Step a line's Change % or type its new amount; leave it empty to keep the Plan."},"event":{"title":"Congress levers","help":"Price change (cost of living, another country) and contingency apply to every category; drivers change the counts behind the cost lines. Change one category with its Change % in the cost table."}},"controls":{"tier1Count":{"label":"Tier One sponsors","min":0,"max":6,"step":1},"tier1Price":{"label":"Tier One price","min":5000,"max":30000,"step":500},"tier2Count":{"label":"Tier Two sponsors","min":0,"max":10,"step":1},"tier2Price":{"label":"Tier Two price","min":2500,"max":15000,"step":250},"member1Count":{"label":"Tier A members","min":0,"max":10,"step":1},"member1Amount":{"label":"Tier A contribution","min":0,"max":5000,"step":50},"member2Count":{"label":"Tier B members","min":0,"max":10,"step":1},"member2Amount":{"label":"Tier B contribution","min":0,"max":3000,"step":50},"member3Count":{"label":"Tier C members","min":0,"max":10,"step":1},"member3Amount":{"label":"Tier C contribution","min":0,"max":2000,"step":50},"grant":{"label":"Grant amount","min":0,"max":40000,"step":1000},"payShare":{"label":"Members paying","min":50,"max":100,"step":5},"priceChange":{"label":"Price change (cost of living, country)","min":-10,"max":30,"step":1},"contingency":{"label":"Contingency","min":0,"max":20,"step":1}},"defaults":{"tier1Count":2,"tier1Price":12000,"tier2Count":3,"tier2Price":6000,"member1Count":1,"member1Amount":2000,"member2Count":2,"member2Amount":1000,"member3Count":2,"member3Amount":500,"grant":0,"payShare":100,"priceChange":0,"contingency":10,"drivers":{},"overrides":{}},"presets":[{"id":"base","name":"Current budget","values":{}},{"id":"downside","name":"Downside","values":{"tier1Count":1,"tier2Count":2,"payShare":80,"priceChange":5,"overrides":{"income":{"donations":7500}}}},{"id":"grant","name":"Grant awarded","values":{"grant":20000}},{"id":"tiers","name":"Higher tier prices","values":{"tier1Price":15000,"tier2Price":7500}},{"id":"members","name":"More members contribute","values":{"member1Count":2,"member2Count":4,"member3Count":5}},{"id":"bigger","name":"100 participants","values":{"drivers":{"participants":100,"rooms":50}}},{"id":"country","name":"Pricier country","values":{"priceChange":8,"drivers":{"travel-long":14}}},{"id":"leaner","name":"Leaner event","values":{"drivers":{"travel-long":6},"categoryChange":{"av":-30,"catering":-10}}},{"id":"fees","name":"Higher fees","values":{"overrides":{"fees":{"A":450,"C":120}}}},{"id":"combined","name":"Combined","values":{"grant":10000,"tier1Price":12500,"member2Count":3,"payShare":90,"drivers":{"participants":90,"rooms":45},"overrides":{"fees":{"A":450}}}}],"startPreset":"base","notes":["All figures are synthetic example data.","Amounts are whole euros (minorDigits 0): this is a high-level budget.","Each derived amount is rounded half away from zero to a whole euro at the points listed in the README.","The Baseline tab (cost lines, category lump sums, drivers' plan, income, running costs, fees) is shared by every scenario; levers, changes and New edition amounts change only the scenario."]};
 
   function set(node, attributes) {
     for (const [key, value] of Object.entries(attributes)) {
@@ -619,7 +641,7 @@ globalThis.ToolCore = Object.freeze({
     node.append(...keep(children));
     return node;
   }
-  const money = minor => Core.money(doc, minor), signed = minor => Core.signed(doc, minor), k = minor => Core.thousands(doc, minor);
+  const money = minor => Core.money(doc, minor), signed = minor => Core.signed(doc, minor);
   const digits = () => doc.minorDigits ?? 2, scale = () => 10 ** digits();
   const major = minor => minor / scale(), plain = minor => major(minor).toFixed(digits());
   const tone = value => (value < 0 ? "neg" : value > 0 ? "pos" : "");
@@ -679,7 +701,7 @@ globalThis.ToolCore = Object.freeze({
   function build() {
     $("app").hidden = false; $("save").disabled = false;
     document.title = doc.title; $("title").textContent = doc.title; $("subtitle").textContent = doc.subtitle ?? "";
-    $("costs-heading").textContent = `${doc.eventLabel} budget: plan and scenario`;
+    $("costs-heading").textContent = `${doc.eventLabel} budget: Plan and New edition`;
     $("stack-heading").textContent = `Who pays for the ${doc.eventLabel}?`;
     $("waterfall-heading").textContent = `How the ${doc.periodLabel} result is built`;
     $("presets").replaceChildren(el("span", { text: "Start from a scenario:" }),
@@ -721,9 +743,9 @@ globalThis.ToolCore = Object.freeze({
     write(next);
     if (attempt(input, () => write(previous))) changed();
   }
-  function readMoney(input) {
+  function readMoney(input, minimum = 0) {
     const number = input.valueAsNumber, minor = Math.round(number * scale());
-    return input.value !== "" && Number.isFinite(number) && number >= 0 && Number.isSafeInteger(minor) ? minor : null;
+    return input.value !== "" && Number.isFinite(number) && minor >= minimum && Number.isSafeInteger(minor) ? minor : null;
   }
   function textInput(read, write, label, commit) {
     return el("input", { type: "text", value: read(), "aria-label": label,
@@ -734,10 +756,10 @@ globalThis.ToolCore = Object.freeze({
       },
       onchange: event => { event.target.value = read(); event.target.removeAttribute("aria-invalid"); if (commit) commit(); } });
   }
-  function moneyInput(read, write, label) {
-    return el("input", { type: "number", min: 0, step: 1 / scale(), value: plain(read()), "aria-label": label,
+  function moneyInput(read, write, label, minimum = 0) {
+    return el("input", { type: "number", min: Number.isFinite(minimum) ? minimum / scale() : null, step: 1 / scale(), value: plain(read()), "aria-label": label,
       oninput: event => {
-        const minor = readMoney(event.target);
+        const minor = readMoney(event.target, minimum);
         if (minor === null) { event.target.setAttribute("aria-invalid", "true"); return; }
         apply(event.target, read, write, minor);
       },
@@ -752,14 +774,20 @@ globalThis.ToolCore = Object.freeze({
       },
       onchange: () => { if (commit) commit(); } });
   }
-  // A scenario amount that replaces the current one. Empty means "use the current amount".
-  function scenarioInput(kind, id, current, label) {
-    const read = () => (kind === "runningCosts" ? values.overrides.runningCosts ?? null : Core.overrideOf(values, kind, id));
-    const write = value => {
-      const map = kind === "runningCosts" ? values.overrides : values.overrides[kind], key = kind === "runningCosts" ? "runningCosts" : id;
-      if (value === null) delete map[key]; else map[key] = value;
+  // A New edition amount that replaces the Plan one. Empty means "use the Plan amount".
+  function overrideAccess(kind, id) {
+    const running = kind === "runningCosts";
+    return {
+      read: () => (running ? values.overrides.runningCosts ?? null : Core.overrideOf(values, kind, id)),
+      write: value => {
+        const map = running ? values.overrides : values.overrides[kind], key = running ? "runningCosts" : id;
+        if (value === null) delete map[key]; else map[key] = value;
+      },
     };
-    const input = el("input", { type: "number", min: 0, step: 1 / scale(), "aria-label": label, title: "Scenario amount. Leave empty to use the current amount.",
+  }
+  function scenarioInput(kind, id, current, label) {
+    const { read, write } = overrideAccess(kind, id);
+    const input = el("input", { type: "number", min: 0, step: 1 / scale(), "aria-label": label, title: "New edition amount. Leave empty to use the Plan amount.",
       "data-scenario-amount": `${kind}:${id ?? ""}`,
       oninput: event => {
         const target = event.target, previous = read();
@@ -793,43 +821,74 @@ globalThis.ToolCore = Object.freeze({
   }
   const head = (...labels) => el("thead", {}, el("tr", {}, labels.map(([label, numeric]) => el("th", { class: numeric ? "n" : null, text: label }))));
 
+  const planCell = read => {
+    const cell = el("td", { class: "n" });
+    live.push(() => { cell.textContent = money(read()); });
+    return cell;
+  };
+
+  // A percentage box with −5 and +5 steps; setTo(input, percent) applies a new percentage.
+  function percentControl(label, attributes, setTo) {
+    const key = Object.values(attributes)[0];
+    const input = el("input", { type: "number", step: 1, min: -100, class: "pct-in", ...attributes,
+      "aria-label": `${label} change in percent`, title: "Change against Plan, in percent",
+      oninput: event => {
+        const target = event.target, number = target.valueAsNumber;
+        if (target.value === "" && target.validity.valid) { setTo(target, 0); return; }
+        if (!Number.isSafeInteger(number) || number < -100) { target.setAttribute("aria-invalid", "true"); return; }
+        setTo(target, number);
+      } });
+    const step = delta => el("button", { type: "button", class: "step", text: delta < 0 ? "\u2212" : "+", "data-step": `${key}:${delta}`,
+      "aria-label": `${label} ${delta < 0 ? "minus" : "plus"} ${Math.abs(delta)}%`,
+      onclick: () => setTo(input, Math.max(-100, (Number(input.value) || 0) + delta)) });
+    const buttons = [step(-5), step(5)];
+    return { input, buttons, node: el("span", { class: "pct" }, buttons[0], input, el("span", { text: "%" }), buttons[1]) };
+  }
+
+  // Percentage steps for an income line, the running costs or a band's fee. A step sets the New edition amount to
+  // Plan × (100 + percent) ÷ 100; a typed New edition amount shows the percentage it implies. Only the amount is saved.
+  function amountStepper(kind, id, plan, label) {
+    const { read, write } = overrideAccess(kind, id);
+    const percent = () => {
+      const value = read(), base = plan();
+      return value === null || base <= 0 ? 0 : Core.mulDiv(value - base, 100, base);
+    };
+    const setTo = (target, next) => {
+      const previous = read();
+      write(next === 0 ? null : Core.mulDiv(plan(), 100 + next, 100));
+      attempt(target, () => write(previous));
+    };
+    const control = percentControl(label, { "data-amount-change": `${kind}:${id ?? ""}` }, setTo);
+    steppers.push({ input: control.input, buttons: control.buttons, read, plan, percent });
+    return control.node;
+  }
+
   function feesCard() {
     const rows = doc.bands.map(band => {
-      const count = doc.members.filter(member => member.band === band.id).length, due = el("td", { class: "n" });
-      live.push(r => { due.textContent = money(r.bandFees.find(item => item.id === band.id).due); });
-      return el("tr", { "data-band": band.id }, el("td", { text: band.label }), el("td", { class: "n", text: String(count) }),
-        el("td", { class: "n" }, moneyInput(() => band.fee, value => { band.fee = value; }, `${band.label} current fee`)),
-        el("td", { class: "n" }, scenarioInput("fees", band.id, () => band.fee, `${band.label} scenario fee`)), due);
+      const count = doc.members.filter(member => member.band === band.id).length;
+      return el("tr", { "data-band": band.id }, el("td", { text: `${band.label} (${count})` }), planCell(() => band.fee),
+        el("td", { class: "n" }, amountStepper("fees", band.id, () => band.fee, band.label)),
+        el("td", { class: "n" }, scenarioInput("fees", band.id, () => band.fee, `${band.label} new fee`)));
     });
     const total = el("b");
     live.push(r => { total.textContent = money(r.fees); });
     return card("fees",
-      el("table", { class: "mini" }, head(["Band"], ["Members", 1], ["Current fee", 1], ["Scenario fee", 1], ["Due", 1]), el("tbody", {}, rows)),
+      el("table", { class: "mini" }, head(["Band (members)"], ["Plan fee", 1], ["Change", 1], ["New fee", 1]), el("tbody", {}, rows)),
       field("payShare"),
       el("p", { class: "sum" }, "Fees received: ", total));
   }
 
   function runningCard() {
-    const income = doc.running.income;
-    const rows = income.map(line => el("tr", { "data-income": line.id },
-      el("td", {}, textInput(() => line.label, value => { line.label = value; }, "Income category", () => { buildViews(); render(); })),
-      el("td", { class: "n" }, moneyInput(() => line.amount, value => { line.amount = value; }, `${line.label} current amount`)),
-      el("td", { class: "n" }, scenarioInput("income", line.id, () => line.amount, `${line.label} scenario amount`)),
-      el("td", { class: "act" }, el("button", { type: "button", class: "x", text: "×", title: "Remove this income line", "aria-label": `Remove ${line.label}`,
-        onclick: () => { Core.removeIncome(doc, line.id); delete values.overrides.income[line.id]; restructure(); } }))));
-    rows.push(el("tr", { class: "total", "data-running-costs": "" }, el("td", { text: "Running costs" }),
-      el("td", { class: "n" }, moneyInput(() => doc.running.costs, value => { doc.running.costs = value; }, "Running costs, current")),
-      el("td", { class: "n" }, scenarioInput("runningCosts", null, () => doc.running.costs, "Running costs, scenario")), el("td")));
+    const rows = doc.running.income.map(line => el("tr", { "data-income": line.id }, el("td", { text: line.label }), planCell(() => line.amount),
+      el("td", { class: "n" }, amountStepper("income", line.id, () => line.amount, line.label)),
+      el("td", { class: "n" }, scenarioInput("income", line.id, () => line.amount, `${line.label} new amount`))));
+    rows.push(el("tr", { class: "total", "data-running-costs": "" }, el("td", { text: "Running costs" }), planCell(() => doc.running.costs),
+      el("td", { class: "n" }, amountStepper("runningCosts", null, () => doc.running.costs, "Running costs")),
+      el("td", { class: "n" }, scenarioInput("runningCosts", null, () => doc.running.costs, "Running costs, new amount"))));
     const result = el("b");
     live.push(r => { result.textContent = signed(r.runningResult); result.className = tone(r.runningResult); });
     return card("running",
-      el("table", { class: "mini" }, head(["Income"], ["Current", 1], ["Scenario", 1], [""]), el("tbody", {}, rows)),
-      el("button", { type: "button", "data-add": "income", text: "Add income line",
-        onclick: () => {
-          const id = Core.nextId(income, "income");
-          income.push({ id, label: "New income", amount: 0 });
-          restructure(`[data-income="${id}"] input[type=text]`);
-        } }),
+      el("table", { class: "mini" }, head(["Line"], ["Plan", 1], ["Change", 1], ["New edition", 1]), el("tbody", {}, rows)),
       el("p", { class: "sum" }, "Running result (fees received + income − running costs): ", result));
   }
 
@@ -841,7 +900,7 @@ globalThis.ToolCore = Object.freeze({
       () => `plan ${driver.plan}`));
     return card("event", field("priceChange"), field("contingency"),
       drivers.length ? el("h4", { text: "Drivers" }) : null, ...drivers,
-      el("p", { class: "sum" }, "To change one category, use its Change % or Scenario amount in the budget table."));
+      el("p", { class: "sum" }, "To change one category, use its Change % or New edition amount in the cost table."));
   }
 
   function buildControls() {
@@ -855,7 +914,7 @@ globalThis.ToolCore = Object.freeze({
   }
 
   // Percentage change for one category, on top of its drivers and the price change. Typing an exact
-  // scenario amount instead shows the percentage it implies; stepping or typing a percentage clears that amount.
+  // New edition amount instead shows the percentage it implies; stepping or typing a percentage clears that amount.
   function changeStepper(category) {
     const id = category.id, read = () => Core.changeOf(values, id);
     const write = value => { if (value === 0) delete values.categoryChange[id]; else values.categoryChange[id] = value; };
@@ -864,37 +923,21 @@ globalThis.ToolCore = Object.freeze({
       write(next); delete values.overrides.costs[id];
       attempt(target, () => { write(previous); if (override !== null) values.overrides.costs[id] = override; });
     };
-    const input = el("input", { type: "number", step: 1, min: -100, class: "pct-in", "data-category-change": id,
-      "aria-label": `${category.label} change in percent`, title: "Change against Plan, in percent",
-      oninput: event => {
-        const target = event.target, number = target.valueAsNumber;
-        if (target.value === "" && target.validity.valid) { setTo(target, 0); return; }
-        if (!Number.isSafeInteger(number) || number < -100) { target.setAttribute("aria-invalid", "true"); return; }
-        setTo(target, number);
-      } });
-    const step = delta => el("button", { type: "button", class: "step", text: delta < 0 ? "\u2212" : "+", "data-step": `${id}:${delta}`,
-      "aria-label": `${category.label} ${delta < 0 ? "minus" : "plus"} ${Math.abs(delta)}%`,
-      onclick: () => setTo(input, Math.max(-100, (Number(input.value) || 0) + delta)) });
-    changes.push({ input, id, read });
-    return el("span", { class: "pct" }, step(-5), input, el("span", { text: "%" }), step(5));
+    const control = percentControl(category.label, { "data-category-change": id }, setTo);
+    changes.push({ input: control.input, id, read });
+    return control.node;
   }
 
   function buildSummary() {
     const cells = () => [el("td", { class: "n" }), el("td", { class: "n" }), el("td", { class: "n" })];
     const rows = doc.eventCosts.categories.map(category => {
-      const hasLines = doc.eventCosts.lines.some(line => line.category === category.id);
       const plan = el("td", { class: "n" }), difference = el("td", { class: "n" }), input = scenarioInput("costs", category.id,
-        r => r.costs.categories.find(item => item.id === category.id).natural, `${category.label} scenario amount`);
-      if (!hasLines) {
-        plan.append(moneyInput(() => category.plan ?? 0, value => { category.plan = value; }, `${category.label} plan`));
-        plan.firstChild.setAttribute("data-category-plan", category.id);
-        plan.firstChild.title = "Plan amount for a category without cost lines. Add lines to calculate it instead.";
-      }
+        r => r.costs.categories.find(item => item.id === category.id).natural, `${category.label} new edition amount`);
       const row = el("tr", { "data-cost-category": category.id }, el("td", { text: category.label }), plan,
         el("td", { class: "n" }, changeStepper(category)), el("td", { class: "n" }, input), difference);
       live.push(r => {
         const c = r.costs.categories.find(item => item.id === category.id);
-        if (hasLines) plan.textContent = money(c.planned);
+        plan.textContent = money(c.planned);
         difference.textContent = signed(c.amount - c.planned); difference.className = `n ${costTone(c.amount - c.planned)}`;
         row.classList.toggle("changed", c.amount !== c.planned);
       });
@@ -912,19 +955,19 @@ globalThis.ToolCore = Object.freeze({
     };
     rows.push(line(r => [r.costs.planned, r.costs.subtotal, "Subtotal"]));
     rows.push(line(r => [r.costs.planContingency, r.costs.contingency,
-      `Contingency (plan ${doc.defaults.contingency}%, scenario ${values.contingency}%)`]));
+      `Contingency (plan ${doc.defaults.contingency}%, new edition ${values.contingency}%)`]));
     const total = line(r => [r.costs.planCost, r.cost, `${doc.eventLabel} cost`], { class: "total" });
     total.children[3].setAttribute("data-output", "cost");
     rows.push(total);
     $("cost-summary").replaceChildren(el("table", { class: "summary" },
-      head(["Category"], ["Plan", 1], ["Change", 1], ["Scenario", 1], ["Difference", 1]), el("tbody", {}, rows)),
+      head(["Category"], ["Plan", 1], ["Change", 1], ["New edition", 1], ["Difference", 1]), el("tbody", {}, rows)),
       el("p", { class: "reset" }, el("button", { type: "button", "data-reset": "categories", text: "Reset categories to Plan",
-        title: "Clear every category's change and scenario amount. Drivers, price change and contingency stay as they are.",
+        title: "Clear every category's change and New edition amount. Drivers, price change and contingency stay as they are.",
         onclick: () => { values.categoryChange = {}; values.overrides.costs = {}; render(); } })));
   }
 
   function buildViews() {
-    sliders = []; live = []; amounts = []; changes = [];
+    sliders = []; live = []; amounts = []; changes = []; steppers = [];
     buildControls();
     buildSummary();
   }
@@ -934,9 +977,13 @@ globalThis.ToolCore = Object.freeze({
     for (const option of document.querySelectorAll(`#cost-editor option[data-${kind}-option="${id}"]`)) option.textContent = label;
   }
 
-  function buildEditor() {
-    const { drivers, categories, lines } = doc.eventCosts;
-    const driverRows = drivers.map(driver => {
+  const sideCard = (key, title, help, ...body) => el("div", { class: "card", "data-baseline": key },
+    el("h3", { text: title }), el("p", { class: "help", text: help }), ...body);
+  const bandCount = band => doc.members.filter(member => member.band === band.id).length;
+
+  function driversCard() {
+    const { drivers, lines } = doc.eventCosts;
+    const rows = drivers.map(driver => {
       const uses = lines.filter(line => (line.per ?? []).includes(driver.id)).length;
       return el("tr", { "data-driver": driver.id },
         el("td", {}, textInput(() => driver.label, value => { driver.label = value; }, "Driver name",
@@ -947,7 +994,67 @@ globalThis.ToolCore = Object.freeze({
           title: uses ? "Take this driver off its cost lines first" : "Delete this driver", "aria-label": `Delete ${driver.label}`,
           onclick: () => { Core.removeDriver(doc, driver.id); delete values.drivers[driver.id]; restructure(); } })));
     });
+    return sideCard("drivers", "Drivers (planned counts)",
+      "A driver is a count that several cost lines depend on, such as participants or nights. The New edition tab moves it with a slider.",
+      el("table", { class: "editor" }, head(["Driver"], ["Plan", 1], ["Used by", 1], [""]), el("tbody", {}, rows)),
+      el("p", {}, el("button", { type: "button", "data-add": "driver", text: "Add driver",
+        onclick: () => {
+          const id = Core.nextId(drivers, "driver");
+          drivers.push({ id, label: "New driver", plan: 1 });
+          restructure(`[data-driver="${id}"] input[type=text]`);
+        } })));
+  }
 
+  function incomeCard() {
+    const income = doc.running.income;
+    const rows = income.map(line => el("tr", { "data-income-line": line.id },
+      el("td", {}, textInput(() => line.label, value => { line.label = value; }, "Income category", () => { buildViews(); render(); })),
+      el("td", { class: "n" }, moneyInput(() => line.amount, value => { line.amount = value; }, `${line.label} amount`)),
+      el("td", { class: "act" }, el("button", { type: "button", class: "x", text: "×", title: "Remove this income line", "aria-label": `Remove ${line.label}`,
+        onclick: () => { Core.removeIncome(doc, line.id); delete values.overrides.income[line.id]; restructure(); } }))));
+    rows.push(el("tr", { class: "total", "data-running-costs-plan": "" }, el("td", { text: "Running costs" }),
+      el("td", { class: "n" }, moneyInput(() => doc.running.costs, value => { doc.running.costs = value; }, "Running costs")), el("td")));
+    return sideCard("running", "Running income and costs",
+      `Amounts for the whole ${doc.periodLabel}. Income is split into categories you can rename, add or remove; running costs are one amount.`,
+      el("table", { class: "mini" }, head(["Income"], ["Amount", 1], [""]), el("tbody", {}, rows)),
+      el("button", { type: "button", "data-add": "income", text: "Add income line",
+        onclick: () => {
+          const id = Core.nextId(income, "income");
+          income.push({ id, label: "New income", amount: 0 });
+          restructure(`[data-income-line="${id}"] input[type=text]`);
+        } }),
+      el("p", { class: "sum" }, "Income total: ", el("b", { "data-plan-total": "income" })));
+  }
+
+  function bandsCard() {
+    const rows = doc.bands.map(band => el("tr", { "data-band-plan": band.id }, el("td", { text: band.label }),
+      el("td", { class: "n", text: String(bandCount(band)) }),
+      el("td", { class: "n" }, moneyInput(() => band.fee, value => { band.fee = value; }, `${band.label} fee`)),
+      el("td", { class: "n", "data-band-due": band.id })));
+    return sideCard("fees", doc.groups.fees.title,
+      "The fee each member in a band pays per period. The number of members comes from the members list in the file.",
+      el("table", { class: "mini" }, head(["Band"], ["Members", 1], ["Fee per member", 1], ["Due", 1]), el("tbody", {}, rows)),
+      el("p", { class: "sum" }, "Fees due if every member pays: ", el("b", { "data-plan-total": "fees" })));
+  }
+
+  function fundingCard() {
+    const row = (label, input) => el("tr", {}, el("td", { text: label }), el("td", { class: "n" }, input));
+    const rows = [
+      ...doc.sponsorTiers.map(tier => row(`${tier.label} package`,
+        moneyInput(() => tier.baselinePrice, value => { tier.baselinePrice = value; }, `${tier.label} package price`, 1))),
+      ...doc.memberTiers.map(tier => row(`${tier.label} contribution`,
+        moneyInput(() => tier.baselineAmount, value => { tier.baselineAmount = value; }, `${tier.label} contribution`, 1))),
+      row(doc.fixedContribution.label, moneyInput(() => doc.fixedContribution.amount, value => { doc.fixedContribution.amount = value; },
+        doc.fixedContribution.label)),
+      row(`Cash at start of ${doc.periodLabel}`, moneyInput(() => doc.cash.start, value => { doc.cash.start = value; }, "Cash at start", -Infinity)),
+    ];
+    return sideCard("funding", "Sponsors, members and cash",
+      `Reference prices for the sponsor packages and member contributions; the New edition sliders show their change against these. ${doc.fixedContribution.label} is always included in member funding.`,
+      el("table", { class: "mini" }, el("tbody", {}, rows)));
+  }
+
+  function buildEditor() {
+    const { drivers, categories, lines } = doc.eventCosts;
     const per = (line, index) => {
       const current = (line.per ?? [])[index] ?? "";
       return el("select", { "aria-label": `${line.item}, multiplied by`, "data-per": index, disabled: index > 0 && !(line.per ?? [])[0],
@@ -965,15 +1072,18 @@ globalThis.ToolCore = Object.freeze({
     const rows = [];
     for (const category of categories) {
       const own = lines.filter(line => line.category === category.id);
+      const planned = own.length ? el("td", { class: "n", "data-category-total": category.id }) : el("td", { class: "n" },
+        set(moneyInput(() => category.plan ?? 0, value => { category.plan = value; }, `${category.label} lump sum`),
+          { "data-category-plan": category.id, title: "Lump sum for a category without cost lines. Add a line to calculate it instead." }));
       rows.push(el("tr", { class: "cat", "data-category": category.id },
         el("td", { colspan: 4 }, textInput(() => category.label, value => { category.label = value; }, "Category name",
           () => { buildViews(); render(); relabel("category", category.id, category.label); })),
-        el("td", { class: "n", "data-category-total": category.id }),
+        planned,
         el("td", { class: "act" },
           el("button", { type: "button", "data-add-line": category.id, text: "Add line",
             onclick: () => {
               const id = Core.nextId(lines, "line"), last = lines.map(line => line.category).lastIndexOf(category.id);
-              // A category's own plan amount becomes its first line, so the plan total is unchanged.
+              // A category's lump sum becomes its first line, so the plan total is unchanged.
               const first = own.length === 0 && category.plan
                 ? { id, category: category.id, item: category.label, quantity: 1, unitCost: category.plan }
                 : { id, category: category.id, item: "New item", quantity: 1, unitCost: 0 };
@@ -999,18 +1109,12 @@ globalThis.ToolCore = Object.freeze({
             onclick: () => { lines.splice(lines.indexOf(line), 1); restructure(); } }))));
       }
     }
+    const sum = (key, label) => el("tr", { class: key === "cost" ? "total" : "plan-sum" },
+      el("td", { colspan: 4, text: label }), el("td", { class: "n", "data-plan-total": key }), el("td"));
+    rows.push(sum("subtotal", "Subtotal"), sum("contingency", `Contingency (${doc.defaults.contingency}%)`), sum("cost", `${doc.eventLabel} plan`));
     $("cost-editor").replaceChildren(
-      el("h3", { text: "Drivers" }),
-      el("p", { class: "note", text: "A driver is a count that several lines depend on, such as participants or nights. Its plan is the count in the current budget; the scenario sliders change it." }),
-      el("table", { class: "editor" }, head(["Driver"], ["Plan", 1], ["Used by", 1], [""]), el("tbody", {}, driverRows)),
-      el("p", {}, el("button", { type: "button", "data-add": "driver", text: "Add driver",
-        onclick: () => {
-          const id = Core.nextId(drivers, "driver");
-          drivers.push({ id, label: "New driver", plan: 1 });
-          restructure(`[data-driver="${id}"] input[type=text]`);
-        } })),
-      el("h3", { text: "Cost lines" }),
-      el("p", { class: "note", text: "Planned amount = quantity × each chosen driver's plan × unit cost. Choose up to two drivers, for example rooms × nights." }),
+      el("h3", { text: `${doc.eventLabel} cost plan` }),
+      el("p", { class: "help", text: "Planned amount = quantity × each chosen driver's plan × unit cost. Choose up to two drivers, for example rooms × nights. A category without lines takes a lump sum; adding its first line turns the lump sum into that line." }),
       el("table", { class: "editor" },
         head(["Item"], ["Quantity", 1], ["× driver"], [`Unit cost (${doc.currency})`, 1], ["Planned", 1], [""]),
         el("tbody", {}, rows)),
@@ -1020,6 +1124,7 @@ globalThis.ToolCore = Object.freeze({
           categories.push({ id, label: "New category" });
           restructure(`[data-category="${id}"] input[type=text]`);
         } })));
+    $("baseline-side").replaceChildren(driversCard(), incomeCard(), bandsCard(), fundingCard());
   }
 
   function syncControls(r) {
@@ -1048,6 +1153,16 @@ globalThis.ToolCore = Object.freeze({
         item.input.removeAttribute("aria-invalid");
       }
     }
+    for (const item of steppers) {
+      const none = item.plan() <= 0;
+      item.input.disabled = none;
+      for (const button of item.buttons) button.disabled = none;
+      item.input.classList.toggle("set", item.read() !== null);
+      if (document.activeElement !== item.input) {
+        item.input.value = none ? "" : String(item.percent());
+        item.input.removeAttribute("aria-invalid");
+      }
+    }
     for (const button of document.querySelectorAll("[data-preset]")) {
       const preset = doc.presets.find(item => item.id === button.getAttribute("data-preset"));
       button.classList.toggle("on", Core.sameValues(doc, Core.presetValues(doc, preset), values));
@@ -1060,7 +1175,7 @@ globalThis.ToolCore = Object.freeze({
       ["cash", `Cash at end of ${doc.periodLabel}`, money(r.cash), tone(r.cash), `Start: ${money(doc.cash.start)}`],
       ["eventResult", r.eventResult < 0 ? `${doc.eventLabel} gap paid from reserves` : `${doc.eventLabel} surplus`,
         money(Math.abs(r.eventResult)), tone(r.eventResult), `Costs ${money(r.cost)} · funding ${money(r.eventIncome)}`],
-      ["topShare", "Largest single funder", Core.share(doc, r.topShare), r.majority ? "neg" : "",
+      ["topShare", "Largest single funder", Core.share(r.topShare), r.majority ? "neg" : "",
         r.topShare === null ? "Not applicable: no cost or no funder" : `of ${doc.eventLabel} costs: ${r.top.label}${r.majority ? " (majority funder)" : ""}`],
     ];
     $("kpis").replaceChildren(...items.map(([key, label, value, colour, detail]) => el("div", { class: "kpi" },
@@ -1075,6 +1190,14 @@ globalThis.ToolCore = Object.freeze({
     for (const node of document.querySelectorAll("[data-category-total]")) {
       const category = r.costs.categories.find(item => item.id === node.getAttribute("data-category-total"));
       node.textContent = category ? money(category.planned) : "";
+    }
+    const totals = { subtotal: r.costs.planned, contingency: r.costs.planContingency, cost: r.costs.planCost,
+      income: Core.add(...doc.running.income.map(line => line.amount)),
+      fees: Core.add(...doc.bands.map(band => Core.mulDiv(band.fee, bandCount(band), 1))) };
+    for (const node of document.querySelectorAll("[data-plan-total]")) node.textContent = money(totals[node.getAttribute("data-plan-total")]);
+    for (const node of document.querySelectorAll("[data-band-due]")) {
+      const band = doc.bands.find(item => item.id === node.getAttribute("data-band-due"));
+      node.textContent = band ? money(Core.mulDiv(band.fee, bandCount(band), 1)) : "";
     }
   }
 
@@ -1098,7 +1221,7 @@ globalThis.ToolCore = Object.freeze({
       if (value <= 0) continue;
       const width = sx(x + major(value)) - sx(x);
       nodes.push(svg("rect", { x: sx(x), y: Y, width, height: BH, fill: colour }, svg("title", { text: `${name}: ${money(value)}` })));
-      if (width > 46) nodes.push(svg("text", { x: sx(x) + width / 2, y: Y + 23, fill: "#fff", "font-size": 12, "text-anchor": "middle", text: k(value) }));
+      if (width > 60) nodes.push(svg("text", { x: sx(x) + width / 2, y: Y + 23, fill: "#fff", "font-size": 12, "text-anchor": "middle", text: money(value) }));
       x += major(value);
     }
     const cx = sx(major(r.cost)), fx = sx(major(r.eventIncome)), by = Y + BH + 8, mid = (fx + cx) / 2;
@@ -1132,7 +1255,7 @@ globalThis.ToolCore = Object.freeze({
       nodes.push(svg("rect", { x, y, width: w, height: h, fill: colour }, svg("title", { text: `${name}: ${signed(value)}` })));
       if (!last) nodes.push(svg("line", { x1: x + w, x2: x + bw, y1: sy(major(to)), y2: sy(major(to)), stroke: "#999", "stroke-dasharray": "2 2" }));
       nodes.push(svg("text", { x: x + w / 2, y: value >= 0 ? y - 5 : y + h + 13, "font-size": 12, "text-anchor": "middle", "font-weight": last ? 700 : 400,
-        text: value === 0 ? "–" : `${!last && value > 0 ? "+" : ""}${k(value)}` }));
+        text: value === 0 ? "–" : `${!last && value > 0 ? "+" : ""}${money(value)}` }));
       nodes.push(svg("text", { x: x + w / 2, y: H - 12, "font-size": 11, "text-anchor": "middle", fill: "#333", text: name }));
     });
     $("waterfall").replaceChildren(svg("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": "Waterfall of the result" }, nodes));
@@ -1211,8 +1334,27 @@ globalThis.ToolCore = Object.freeze({
     if (file) loadText(await file.text(), file.name, null);
   });
   window.addEventListener("beforeunload", event => { if (dirty) { event.preventDefault(); event.returnValue = ""; } });
+  const tabs = [...document.querySelectorAll("[data-tab]")];
+  function showTab(name, focus = false) {
+    for (const tab of tabs) {
+      const on = tab.getAttribute("data-tab") === name;
+      tab.setAttribute("aria-selected", String(on));
+      tab.tabIndex = on ? 0 : -1;
+      $(tab.getAttribute("aria-controls")).hidden = !on;
+      if (on && focus) tab.focus();
+    }
+  }
+  for (const tab of tabs) {
+    tab.addEventListener("click", () => showTab(tab.getAttribute("data-tab")));
+    tab.addEventListener("keydown", event => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const next = tabs[(tabs.indexOf(tab) + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      showTab(next.getAttribute("data-tab"), true);
+    });
+  }
+  showTab("baseline");
   loadText(JSON.stringify(STARTER), "budget.json", null);
-  status("Starting budget with made-up figures. Edit the current budget, move the levers, or Load your own budget JSON.");
+  status("Starting budget with made-up figures. Edit the Baseline, try levers on New edition, or Load your own budget JSON.");
 })();
 </script>
 </body>
